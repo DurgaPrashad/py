@@ -1,0 +1,7 @@
+export { ScriptAligner, DEFAULT_ALIGNER_OPTIONS } from './aligner'
+export type { AlignmentOutcome, AlignerOptions, Direction } from './aligner'
+export { CommandMatcher, DEFAULT_COMMAND_PHRASES } from './commands'
+export { buildScriptIndex, normalizePiece, tokenizeScript, tokenizeSpoken } from './normalize'
+export type { ScriptIndex, SpokenToken } from './normalize'
+export { SyncSession } from './syncSession'
+export type { SyncResult } from './syncSession'

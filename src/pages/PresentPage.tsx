@@ -1,0 +1,745 @@
+import { ChevronLeft, ChevronRight, Maximize, MicOff, MonitorUp, Pause, Play, RotateCcw, X } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Button, IconButton } from '../components/Button'
+import { Kbd } from '../components/controls'
+import { FitBox } from '../components/FitBox'
+import { toast } from '../components/Toast'
+import { MicStatus } from '../features/speech/MicStatus'
+import { ModelList } from '../features/speech/ModelList'
+import { useSpeechEngine } from '../features/speech/useSpeechEngine'
+import { useSettings } from '../features/settings/settingsStore'
+import { SlideImage } from '../features/slides/SlideImage'
+import { Teleprompter } from '../features/teleprompter/Teleprompter'
+import { useCameraAnchor } from '../features/teleprompter/useCameraAnchor'
+import { CommandMatcher } from '../services/alignment/commands'
+import { SyncSession } from '../services/alignment/syncSession'
+import { speech } from '../services/speech/speechService'
+import { loadPresentation } from '../services/storage/projects'
+import { platform } from '../platform'
+import { errorMessage } from '../services/tauri'
+import type { Presentation, ScriptWord, VoiceCommand } from '../types'
+import { formatClock } from '../utils/format'
+
+const COMMAND_LABEL: Record<VoiceCommand, string> = {
+  next: 'Next slide',
+  previous: 'Previous slide',
+  repeat: 'Restarting slide',
+  pause: 'Paused',
+  resume: 'Resumed',
+}
+
+/** Recent script context for optional recognizer biasing — only words already passed. */
+function promptContext(words: ScriptWord[], wordIndex: number): string {
+  const end = Math.max(0, wordIndex - 14)
+  return words
+    .slice(Math.max(0, end - 32), end)
+    .map((w) => w.text)
+    .join(' ')
+}
+
+export function PresentPage() {
+  const { id = '' } = useParams()
+  const [search] = useSearchParams()
+  const navigate = useNavigate()
+  const settings = useSettings((s) => s.settings)
+  const updateSettings = useSettings((s) => s.update)
+  const tp = settings.teleprompter
+
+  const [p, setP] = useState<Presentation | null>(null)
+  const [slideIndex, setSlideIndex] = useState(() => Math.max(0, Number(search.get('slide') ?? 1) - 1))
+  const [wordIndex, setWordIndex] = useState(0)
+  const [spoken, setSpoken] = useState(false)
+  const [atEnd, setAtEnd] = useState(false)
+  const [paused, setPaused] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [showTranscript, setShowTranscript] = useState(tp.showTranscript)
+  const [flash, setFlash] = useState<string | null>(null)
+  const [voiceEnabled, setVoiceEnabled] = useState(true)
+  const [startedAt] = useState(() => Date.now())
+  const session = useRef<SyncSession | null>(null)
+  const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const engine = useSpeechEngine(!!p && voiceEnabled, settings.speech)
+
+  useEffect(() => {
+    loadPresentation(id)
+      .then((loaded) => {
+        setP(loaded)
+        setSlideIndex((i) => Math.min(i, loaded.slides.length - 1))
+      })
+      .catch((e) => {
+        toast(errorMessage(e), 'error')
+        navigate('/', { replace: true })
+      })
+  }, [id, navigate])
+
+  const slide = p?.slides[slideIndex]
+  const words = useMemo(() => slide?.words ?? [], [slide])
+  const total = p?.slides.length ?? 0
+
+  const voiceCommands = settings.voiceCommands
+  const matcher = useMemo(() => (voiceCommands.enabled ? new CommandMatcher(voiceCommands.phrases) : null), [voiceCommands])
+
+  // One sync session per presentation; swap scripts on slide change. The
+  // session keeps its own paused flag (see setPausedBoth).
+  useEffect(() => {
+    if (!p) return
+    if (!session.current) session.current = new SyncSession(words, null)
+    else {
+      session.current.setScript(words)
+      speech.boundary()
+    }
+    setWordIndex(0)
+    setSpoken(false)
+    setAtEnd(false)
+    setTranscript('')
+  }, [p, words])
+
+  useEffect(() => {
+    if (session.current) session.current.commands = matcher
+  }, [matcher, p])
+
+  const showFlash = useCallback((text: string) => {
+    setFlash(text)
+    clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => setFlash(null), 1400)
+  }, [])
+
+  const goTo = useCallback(
+    (index: number) => {
+      if (!p) return
+      const next = Math.max(0, Math.min(p.slides.length - 1, index))
+      setSlideIndex(next)
+    },
+    [p],
+  )
+
+  const restart = useCallback(() => {
+    session.current?.restart()
+    setWordIndex(0)
+    setSpoken(false)
+    setAtEnd(false)
+  }, [])
+
+  const setPausedBoth = useCallback((value: boolean) => {
+    setPaused(value)
+    if (session.current) session.current.paused = value
+  }, [])
+
+  const placeWord = useCallback((w: number) => {
+    const s = session.current
+    if (!s) return
+    s.aligner.setWordIndex(w)
+    setWordIndex(s.aligner.wordIndex)
+    setSpoken(s.aligner.position >= 0)
+    setAtEnd(s.aligner.atEnd)
+  }, [])
+
+  // Latest actions for event handlers registered once.
+  const actions = useRef({ goTo, restart, setPausedBoth, showFlash, slideIndex, paused, atEnd })
+  useLayoutEffect(() => {
+    actions.current = { goTo, restart, setPausedBoth, showFlash, slideIndex, paused, atEnd }
+  })
+
+  const runCommand = useCallback((cmd: VoiceCommand) => {
+    const a = actions.current
+    a.showFlash(COMMAND_LABEL[cmd])
+    if (cmd === 'next') a.goTo(a.slideIndex + 1)
+    else if (cmd === 'previous') a.goTo(a.slideIndex - 1)
+    else if (cmd === 'repeat') a.restart()
+    else if (cmd === 'pause') a.setPausedBoth(true)
+    else if (cmd === 'resume') a.setPausedBoth(false)
+  }, [])
+
+  // Recognizer -> alignment -> teleprompter.
+  useEffect(() => {
+    const unlisten = speech.onTranscript((e) => {
+      const s = session.current
+      if (!s) return
+      const r = s.handle(e)
+      ;(window as { __reflexTrace?: (t: object) => void }).__reflexTrace?.({ heard: r.text, word: s.aligner.wordIndex, end: s.aligner.atEnd, command: r.command, final: e.isFinal })
+      if (r.command) {
+        runCommand(r.command)
+        return
+      }
+      setTranscript(r.text)
+      if (r.outcome?.moved) {
+        setWordIndex(s.aligner.wordIndex)
+        setSpoken(true)
+        setAtEnd(s.aligner.atEnd)
+      }
+    })
+    return () => {
+      unlisten.then((f) => f())
+    }
+  }, [runCommand])
+
+  // Optional: bias recognition toward the script vocabulary (earlier words only).
+  useEffect(() => {
+    if (!settings.speech.biasWithScript || engine.status !== 'listening') return
+    const t = setTimeout(() => speech.setPrompt(promptContext(words, wordIndex)).catch(() => {}), 250)
+    return () => clearTimeout(t)
+  }, [words, wordIndex, settings.speech.biasWithScript, engine.status])
+
+  // Keyboard (and presentation clickers, which send PageUp/PageDown) — in this
+  // window and in the popped-out teleprompter.
+  const pipRef = useRef<Window | null>(null)
+  const [pipOpen, setPipOpen] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest('input, textarea, select')) return
+      const a = actions.current
+      const sc = settings.shortcuts
+      const code = e.code
+      if (code === sc.next || code === 'PageDown') a.goTo(a.slideIndex + 1)
+      else if (code === sc.previous || code === 'PageUp') a.goTo(a.slideIndex - 1)
+      else if (code === sc.togglePause) {
+        a.setPausedBoth(!a.paused)
+        a.showFlash(a.paused ? 'Resumed' : 'Paused')
+      } else if (code === sc.restart) {
+        a.restart()
+        a.showFlash('Restarting slide')
+      } else if (code === sc.exit) navigate(-1)
+      else if (code === 'ArrowDown') placeWord(Math.min(words.length - 1, (session.current?.aligner.wordIndex ?? 0) + 1))
+      else if (code === 'ArrowUp') placeWord((session.current?.aligner.wordIndex ?? 0) - 1)
+      else if (code === 'KeyT') setShowTranscript((v) => !v)
+      else return
+      e.preventDefault()
+    }
+    const targets: Window[] = [window, ...(pipRef.current ? [pipRef.current] : [])]
+    targets.forEach((t) => t.addEventListener('keydown', onKey))
+    return () => targets.forEach((t) => t.removeEventListener('keydown', onKey))
+  }, [settings.shortcuts, navigate, placeWord, words.length, pipOpen])
+
+  // Optional auto-advance at the end of a slide's script.
+  const [autoCountdown, setAutoCountdown] = useState(false)
+  useEffect(() => {
+    if (!settings.autoAdvance.enabled || !atEnd || paused || slideIndex >= total - 1) {
+      setAutoCountdown(false)
+      return
+    }
+    setAutoCountdown(true)
+    const t = setTimeout(() => {
+      setAutoCountdown(false)
+      goTo(slideIndex + 1)
+    }, settings.autoAdvance.delayMs)
+    return () => clearTimeout(t)
+  }, [atEnd, paused, settings.autoAdvance, slideIndex, total, goTo])
+
+  // Display modes. "dual": slides on another display. "share": for video
+  // calls — what you share shows only the deck, while the teleprompter lives
+  // in a separate window you don't share (browser: a floating
+  // picture-in-picture window; desktop: a floating strip under the camera).
+  const mode = settings.display.mode
+  const web = platform.kind === 'web'
+  const [slidesWindow, setSlidesWindow] = useState<null | 'share' | 'display'>(null)
+  const [shareStage, setShareStage] = useState<'setup' | 'live'>('setup')
+  const [pipWindow, setPipWindow] = useState<Window | null>(null)
+  const engineOk = engine.status !== 'missing-model' && engine.status !== 'error'
+  const shareLive = mode === 'share' && shareStage === 'live'
+  const compact = shareLive && !web && engineOk
+  const compactH = Math.round(tp.fontSize * 1.94 + 26 + (showTranscript ? 22 : 0))
+
+  const openSlidesWindow = useCallback(
+    async (share: boolean) => {
+      if (!p) return false
+      try {
+        const external = await platform.windows.openSlides(p.id, { monitorIndex: settings.display.audienceMonitor, share })
+        setSlidesWindow(share ? 'share' : 'display')
+        platform.windows.sendSlide(actions.current.slideIndex)
+        if (!share && !external) toast('Only one display found — the slides window opened here. Drag it to your projector.', 'info')
+        return true
+      } catch (e) {
+        toast(errorMessage(e), 'error')
+        return false
+      }
+    },
+    [p, settings.display.audienceMonitor],
+  )
+
+  const closeSlidesWindow = useCallback(() => {
+    void platform.windows.closeSlides()
+    setSlidesWindow(null)
+  }, [])
+
+  useEffect(() => {
+    if (!p) return
+    const fullscreen = mode === 'fullscreen' || mode === 'dual'
+    if (fullscreen) void platform.windows.setFullscreen(true)
+    if (mode === 'dual') void openSlidesWindow(false)
+    return () => {
+      if (fullscreen) void platform.windows.setFullscreen(false)
+      void platform.windows.closeSlides()
+    }
+  }, [p, mode, openSlidesWindow])
+
+  useEffect(() => platform.windows.onSlidesClosed(() => setSlidesWindow(null)), [])
+  useEffect(() => {
+    if (slidesWindow) platform.windows.sendSlide(slideIndex)
+  }, [slideIndex, slidesWindow])
+  useEffect(() => platform.windows.onSlidesReady(() => platform.windows.sendSlide(actions.current.slideIndex)), [])
+
+  /** Start presenting to a video call (needs a click: pop-ups and PiP require one). */
+  const startShare = useCallback(async () => {
+    if (web) {
+      const dpip = (window as Window & { documentPictureInPicture?: { requestWindow(o: object): Promise<Window> } }).documentPictureInPicture
+      if (dpip) {
+        try {
+          // The PiP window's own title bar takes ~90 px; ask for enough room
+          // for the strip, then correct to the exact size once it exists.
+          const w = await dpip.requestWindow({ width: Math.round(Math.min(screen.width * (tp.width / 100), 1400)), height: compactH + 96 })
+          try {
+            const chromeH = w.outerHeight - w.innerHeight
+            if (Math.abs(w.innerHeight - compactH) > 4) w.resizeTo(w.outerWidth, compactH + chromeH)
+          } catch {
+            // resizing needs a user gesture in some browsers; the extra height is fine
+          }
+          for (const node of document.head.querySelectorAll('style, link[rel="stylesheet"]')) w.document.head.appendChild(node.cloneNode(true))
+          w.document.documentElement.className = 'dark'
+          w.document.title = 'Reflex — Teleprompter'
+          w.document.body.style.cssText = 'margin:0;background:#0b0b0e;overflow:hidden;height:100vh'
+          w.addEventListener('pagehide', () => {
+            setPipWindow(null)
+            setShareStage('setup')
+          })
+          setPipWindow(w)
+          setShareStage('live')
+          return
+        } catch (e) {
+          toast(`Could not pop out the teleprompter: ${errorMessage(e)}`, 'error')
+        }
+      }
+      // No picture-in-picture (Safari / Firefox): share a slides-only window instead.
+      if (await openSlidesWindow(true)) setShareStage('live')
+      return
+    }
+    if (await openSlidesWindow(true)) setShareStage('live')
+  }, [web, tp.width, compactH, openSlidesWindow])
+
+  useEffect(() => {
+    pipRef.current = pipWindow
+    setPipOpen(!!pipWindow)
+    return () => pipWindow?.close()
+  }, [pipWindow])
+
+  // Desktop: shrink this window into a floating strip under the camera while
+  // the slides window fills the screen.
+  useEffect(() => {
+    if (!compact || !platform.windows.setPresenterCompact) return
+    void platform.windows.setPresenterCompact(true, Math.round(screen.width * (tp.width / 100)), compactH)
+    return () => void platform.windows.setPresenterCompact?.(false, 0, 0)
+  }, [compact, tp.width, compactH])
+
+  // Layout: strip under the camera (or a top / bottom bar), slide below.
+  const camera = tp.position === 'camera'
+  const anchor = useCameraAnchor(camera)
+  const stripRef = useRef<HTMLDivElement>(null)
+  const [stripH, setStripH] = useState(0)
+  const [viewportW, setViewportW] = useState(() => window.innerWidth)
+  useLayoutEffect(() => {
+    const el = stripRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setStripH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [p, tp.position])
+  useEffect(() => {
+    const onResize = () => setViewportW(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // Controls fade out while presenting and come back on mouse movement.
+  const [idle, setIdle] = useState(false)
+  useEffect(() => {
+    if (!settings.display.autoHideControls) {
+      setIdle(false)
+      return
+    }
+    let t: ReturnType<typeof setTimeout>
+    const wake = () => {
+      setIdle(false)
+      clearTimeout(t)
+      t = setTimeout(() => setIdle(true), 2500)
+    }
+    wake()
+    window.addEventListener('mousemove', wake)
+    window.addEventListener('mousedown', wake)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('mousemove', wake)
+      window.removeEventListener('mousedown', wake)
+    }
+  }, [settings.display.autoHideControls])
+
+  if (!p || !slide) return <div className="h-full bg-black" />
+
+  const highlight = tp.highlightTarget === 'next' && spoken ? Math.min(wordIndex + 1, words.length - 1) : wordIndex
+  const isLast = slideIndex === total - 1
+  const dual = !!slidesWindow
+  const nextSlide = p.slides[slideIndex + 1]
+
+  const stripBg = `color-mix(in srgb, #0b0b0e ${Math.round(tp.opacity * 100)}%, transparent)`
+  // Floats on the strip's edge so it never shifts the slide or covers words.
+  const chips = (paused || atEnd) && (
+    <div
+      className={`pointer-events-none absolute inset-x-0 z-10 flex justify-center gap-2 ${
+        tp.position === 'bottom' ? 'bottom-full translate-y-1/2' : 'top-full -translate-y-1/2'
+      }`}
+    >
+      {paused && <Chip tone="muted">Paused</Chip>}
+      {atEnd && !paused && (
+        <Chip tone="accent">{isLast ? 'End of presentation' : autoCountdown ? 'Next slide…' : <>End of slide · say “Next” or press →</>}</Chip>
+      )}
+    </div>
+  )
+  const prompter = (
+    <>
+      <Teleprompter
+        words={words}
+        current={highlight}
+        config={tp}
+        onWordClick={placeWord}
+        pad={camera ? 4 : 28}
+        emptyText="No script for this slide — add one in the editor"
+      />
+      {showTranscript && (
+        <div className="selectable truncate pb-2 text-center text-[12px] text-subtle" title="What the speech engine heard">
+          {transcript || '…'}
+        </div>
+      )}
+    </>
+  )
+
+  // Camera strip: a floating panel centred on the camera, just below it.
+  const camW = Math.min(viewportW - 24, Math.max(360, (viewportW * tp.width) / 100))
+  const camLeft = Math.max(12, Math.min(viewportW - camW - 12, anchor.centerX - camW / 2))
+  const camTop = anchor.top + 6
+
+  const strip = camera ? (
+    <div ref={stripRef} className="absolute z-20" style={{ top: camTop, left: camLeft, width: camW }}>
+      <div
+        className="rounded-[20px] border border-white/[0.08] px-4 shadow-[0_18px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+        style={{ background: stripBg }}
+      >
+        {prompter}
+      </div>
+      {chips}
+    </div>
+  ) : (
+    <div ref={stripRef} className={`absolute inset-x-0 z-20 ${tp.position === 'top' ? 'top-0' : 'bottom-0'}`}>
+      <div
+        className={`border-white/[0.07] ${tp.position === 'top' ? 'border-b' : 'border-t'}`}
+        style={{ background: stripBg }}
+      >
+        <div className="mx-auto" style={{ width: `${tp.width}%` }}>
+          {prompter}
+        </div>
+      </div>
+      {chips}
+    </div>
+  )
+
+  const padTop = camera ? camTop + stripH + 14 : tp.position === 'top' ? stripH + 14 : 28
+  const padBottom = tp.position === 'bottom' ? stripH + 14 : 56
+  const controlsHidden = idle && engine.status !== 'error' && engine.status !== 'missing-model' && !(mode === 'share' && !shareLive)
+  const stripChip =
+    paused ? 'Paused' : atEnd ? (isLast ? 'End of presentation' : autoCountdown ? 'Next slide…' : 'End of slide · say “Next” or press →') : null
+
+  // The floating teleprompter: desktop compact window or browser PiP window.
+  const floating = (
+    <FloatingStrip
+      prompter={prompter}
+      chip={stripChip}
+      slideLabel={`${slideIndex + 1} / ${total}`}
+      paused={paused}
+      onPrev={() => goTo(slideIndex - 1)}
+      onNext={() => goTo(slideIndex + 1)}
+      onTogglePause={() => setPausedBoth(!paused)}
+      onExit={() => navigate(-1)}
+    />
+  )
+
+  if (compact) return floating
+
+  // In browser share mode the tab itself is what the audience sees: deck only.
+  const deckOnly = web && shareLive && !!pipWindow
+
+  return (
+    <div className={`dark relative h-full overflow-hidden bg-black text-fg ${controlsHidden ? 'cursor-none' : ''}`}>
+      {pipWindow && createPortal(floating, pipWindow.document.body)}
+      {!deckOnly && strip}
+
+      <div
+        className="absolute inset-0 flex items-center justify-center gap-6 px-6"
+        style={deckOnly ? { padding: 0 } : { paddingTop: padTop, paddingBottom: padBottom }}
+        data-tauri-drag-region
+      >
+        <div className={`flex h-full min-w-0 items-center justify-center ${dual && !deckOnly ? 'flex-[3]' : 'w-full'}`}>
+          <FitBox ratio={p.aspectRatio}>
+            <div className={`h-full w-full overflow-hidden ${deckOnly ? '' : 'rounded-lg shadow-2xl shadow-black'}`}>
+              <SlideImage slide={slide} aspectRatio={p.aspectRatio} className="h-full w-full" />
+            </div>
+          </FitBox>
+        </div>
+        {dual && !deckOnly && (
+          <aside className="flex h-full min-w-[220px] flex-1 flex-col gap-3 overflow-hidden">
+            <div className="text-[11.5px] font-medium tracking-wide text-subtle uppercase">Next</div>
+            {nextSlide ? (
+              <div className="overflow-hidden rounded-md ring-1 ring-line">
+                <SlideImage slide={nextSlide} aspectRatio={p.aspectRatio} thumb />
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed border-line py-6 text-center text-[12px] text-subtle">End of presentation</div>
+            )}
+            {slide.notes && (
+              <>
+                <div className="mt-2 text-[11.5px] font-medium tracking-wide text-subtle uppercase">Notes</div>
+                <p className="selectable min-h-0 overflow-y-auto text-[13px] leading-relaxed whitespace-pre-line text-muted">{slide.notes}</p>
+              </>
+            )}
+          </aside>
+        )}
+      </div>
+
+      {mode === 'share' && !shareLive && engine.status !== 'missing-model' && (
+        <ShareSetup web={web} pipSupported={web && 'documentPictureInPicture' in window} onStart={startShare} onCancel={() => navigate(-1)} />
+      )}
+      {flash && !deckOnly && (
+        <div className="pointer-events-none absolute bottom-16 left-1/2 z-30 -translate-x-1/2 rounded-full bg-elevated/90 px-4 py-1.5 text-[13px] font-medium shadow-xl backdrop-blur animate-rise">
+          {flash}
+        </div>
+      )}
+      {engine.status === 'missing-model' && (
+        <ModelSetup
+          selected={settings.speech.modelId}
+          onSelect={(modelId) => updateSettings('speech', { modelId })}
+          onRetry={engine.retry}
+          onManual={() => setVoiceEnabled(false)}
+        />
+      )}
+
+      <footer
+        className={`absolute inset-x-0 bottom-0 z-20 flex h-12 items-center gap-4 bg-gradient-to-t from-black via-black/90 to-transparent px-4 text-muted transition-opacity duration-300 ${
+          controlsHidden || deckOnly ? 'pointer-events-none opacity-0' : 'opacity-100'
+        } ${tp.position === 'bottom' ? 'hidden' : ''}`}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <MicStatus status={engine.status} paused={paused} device={engine.device} showLevel={settings.display.showLevelMeter} />
+          {engine.status === 'error' && (
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-[12px] text-danger" title={engine.message}>
+                {engine.message}
+              </span>
+              <Button size="sm" onClick={engine.retry}>
+                Retry
+              </Button>
+            </span>
+          )}
+          {!voiceEnabled && (
+            <Button size="sm" variant="ghost" icon={<MicOff size={13} />} onClick={() => setVoiceEnabled(true)}>
+              Enable voice sync
+            </Button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          <IconButton label="Previous slide (←)" onClick={() => goTo(slideIndex - 1)} disabled={slideIndex === 0}>
+            <ChevronLeft size={18} />
+          </IconButton>
+          <span className="min-w-[96px] text-center text-[13px] font-medium text-fg tabular">
+            Slide {slideIndex + 1} <span className="text-subtle">/ {total}</span>
+          </span>
+          <IconButton label="Next slide (→)" onClick={() => goTo(slideIndex + 1)} disabled={isLast}>
+            <ChevronRight size={18} />
+          </IconButton>
+        </div>
+
+        <div className="flex flex-1 items-center justify-end gap-1">
+          <IconButton label={paused ? 'Resume sync (Space)' : 'Pause sync (Space)'} active={paused} onClick={() => setPausedBoth(!paused)}>
+            {paused ? <Play size={15} /> : <Pause size={15} />}
+          </IconButton>
+          <IconButton label="Restart slide (R)" onClick={restart}>
+            <RotateCcw size={15} />
+          </IconButton>
+          <IconButton
+            label={slidesWindow ? 'Close slides window' : 'Open a slides-only window (to share or put on a projector)'}
+            active={!!slidesWindow}
+            onClick={() => (slidesWindow ? closeSlidesWindow() : void openSlidesWindow(true))}
+          >
+            <MonitorUp size={15} />
+          </IconButton>
+          {web && (
+            <IconButton label="Fullscreen" onClick={() => void platform.windows.setFullscreen(!document.fullscreenElement)}>
+              <Maximize size={15} />
+            </IconButton>
+          )}
+          <Clock startedAt={startedAt} />
+          <IconButton label="Exit (Esc)" onClick={() => navigate(-1)}>
+            <X size={17} />
+          </IconButton>
+        </div>
+      </footer>
+    </div>
+  )
+}
+
+/** Compact teleprompter for the floating window (desktop) or PiP window (browser). */
+function FloatingStrip({
+  prompter,
+  chip,
+  slideLabel,
+  paused,
+  onPrev,
+  onNext,
+  onTogglePause,
+  onExit,
+}: {
+  prompter: React.ReactNode
+  chip: string | null
+  slideLabel: string
+  paused: boolean
+  onPrev: () => void
+  onNext: () => void
+  onTogglePause: () => void
+  onExit: () => void
+}) {
+  return (
+    <div className="dark group relative flex h-screen w-full items-center overflow-hidden bg-[#0b0b0e] px-4 text-fg" data-tauri-drag-region>
+      <div className="min-w-0 flex-1">{prompter}</div>
+      {chip && (
+        <div className="pointer-events-none absolute right-3 bottom-1.5 text-[11px] font-medium text-accent/90 transition-opacity group-hover:opacity-0">{chip}</div>
+      )}
+      <div className="absolute inset-y-0 right-0 flex items-center gap-0.5 bg-gradient-to-l from-[#0b0b0e] via-[#0b0b0e] to-transparent pr-2 pl-10 opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="mr-1 text-[11px] text-subtle tabular">{slideLabel}</span>
+        <IconButton label="Previous slide" size="sm" onClick={onPrev}>
+          <ChevronLeft size={15} />
+        </IconButton>
+        <IconButton label="Next slide" size="sm" onClick={onNext}>
+          <ChevronRight size={15} />
+        </IconButton>
+        <IconButton label={paused ? 'Resume' : 'Pause'} size="sm" active={paused} onClick={onTogglePause}>
+          {paused ? <Play size={13} /> : <Pause size={13} />}
+        </IconButton>
+        <IconButton label="Exit" size="sm" onClick={onExit}>
+          <X size={14} />
+        </IconButton>
+      </div>
+    </div>
+  )
+}
+
+/** Explains how to share only the deck, then starts on a click. */
+function ShareSetup({ web, pipSupported, onStart, onCancel }: { web: boolean; pipSupported: boolean; onStart: () => void; onCancel: () => void }) {
+  const steps = web
+    ? pipSupported
+      ? [
+          'Click Start. The teleprompter pops out into a small floating window — drag it right under your camera.',
+          'This tab then shows only your deck. In Google Meet choose Share screen → “A tab” (Zoom / Teams: share this browser tab).',
+          'Your audience sees just the slides. The floating teleprompter is a separate window, so it is not part of the tab you share.',
+        ]
+      : [
+          'Click Start. A slides-only window opens (allow pop-ups if asked).',
+          'In Google Meet, Zoom or Teams share that window — “Reflex — Slides”.',
+          'Keep this tab with the teleprompter on your screen; it is not shared.',
+        ]
+    : [
+        'Click Start. Your slides fill the screen in their own window and the teleprompter floats just under your camera.',
+        'In Google Meet, Zoom or Teams choose Share → Window → “Reflex — Slides (share this window)”.',
+        'Your audience sees only the slides. Use ← → or say “Next”; press Esc to finish.',
+      ]
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 p-8 backdrop-blur-sm animate-fade-in">
+      <div className="w-[600px] max-w-full rounded-2xl border border-line-strong bg-elevated p-6 shadow-2xl">
+        <div className="flex items-center gap-2.5">
+          <MonitorUp size={18} className="text-accent" />
+          <h2 className="text-[17px] font-semibold tracking-tight">Present to a video call</h2>
+        </div>
+        <ol className="mt-4 flex flex-col gap-3">
+          {steps.map((step, i) => (
+            <li key={i} className="flex gap-3 text-[13.5px] leading-relaxed text-muted">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent">{i + 1}</span>
+              {step}
+            </li>
+          ))}
+        </ol>
+        <p className="mt-4 text-[12px] leading-relaxed text-subtle">
+          Sharing your entire screen shows every window on it, including the teleprompter — share the {web && pipSupported ? 'tab' : 'slides window'} instead.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button variant="primary" data-autofocus onClick={onStart}>
+            Start
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Chip({ children, tone }: { children: React.ReactNode; tone: 'accent' | 'muted' }) {
+  return (
+    <span
+      className={`rounded-full px-3 py-1 text-[12px] font-medium whitespace-nowrap animate-fade-in ${
+        tone === 'accent' ? 'border border-accent/30 bg-[#2a170b] text-accent' : 'border border-line-strong bg-elevated text-muted'
+      }`}
+    >
+      {children}
+    </span>
+  )
+}
+
+function Clock({ startedAt }: { startedAt: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500)
+    return () => clearInterval(t)
+  }, [])
+  return <span className="mx-2 w-14 text-right text-[13px] font-medium text-fg tabular">{formatClock(now - startedAt)}</span>
+}
+
+function ModelSetup({
+  selected,
+  onSelect,
+  onRetry,
+  onManual,
+}: {
+  selected: string
+  onSelect: (id: string) => void
+  onRetry: () => void
+  onManual: () => void
+}) {
+  return (
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-8 backdrop-blur-sm animate-fade-in">
+      <div className="w-[560px] max-w-full rounded-2xl border border-line-strong bg-elevated p-6 shadow-2xl">
+        <h2 className="text-[17px] font-semibold tracking-tight">Set up local speech recognition</h2>
+        <p className="mt-1.5 text-[13px] text-muted">
+          Reflex follows your voice with a Whisper model that runs entirely on this computer. Download one once — no account, no cloud.
+        </p>
+        <div className="mt-5">
+          <ModelList
+            compact
+            selected={selected}
+            onSelect={(id) => {
+              onSelect(id)
+              onRetry()
+            }}
+          />
+        </div>
+        <div className="mt-5 flex items-center justify-between">
+          <button type="button" onClick={onManual} className="text-[12.5px] text-muted hover:text-fg">
+            Present without voice sync
+          </button>
+          <div className="flex items-center gap-2 text-[12px] text-subtle">
+            Use <Kbd>→</Kbd> <Kbd>↓</Kbd> to advance manually
+            <Button size="sm" variant="primary" onClick={onRetry}>
+              Start
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
