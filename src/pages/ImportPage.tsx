@@ -9,6 +9,7 @@ import { importPresentation, type ImportProgress } from '../services/parser/impo
 import { savePresentation, withWords } from '../services/storage/projects'
 import { errorMessage } from '../services/tauri'
 import type { Presentation, Slide } from '../types'
+import { HOME } from '../utils/routes'
 
 export function ImportPage() {
   const navigate = useNavigate()
@@ -24,7 +25,7 @@ export function ImportPage() {
 
   useEffect(() => {
     if (!path) {
-      navigate('/', { replace: true })
+      navigate(HOME, { replace: true })
       return
     }
     if (started.current) return
@@ -66,7 +67,7 @@ export function ImportPage() {
       <TitleBar
         left={
           <>
-            <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => navigate('/')}>
+            <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => navigate(HOME)}>
               Presentations
             </Button>
             <span className="truncate text-[13px] text-muted">{fileName}</span>
@@ -93,7 +94,7 @@ export function ImportPage() {
               <AlertTriangle className="text-danger" size={26} />
               <h2 className="mt-4 text-[17px] font-semibold">Import failed</h2>
               <p className="selectable mt-2 max-w-md text-[13.5px] text-muted">{error}</p>
-              <Button className="mt-6" onClick={() => navigate('/')}>
+              <Button className="mt-6" onClick={() => navigate(HOME)}>
                 Back to presentations
               </Button>
             </div>

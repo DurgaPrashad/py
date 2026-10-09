@@ -3,14 +3,17 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from './components/Toast'
 import { applyTheme, useSettings } from './features/settings/settingsStore'
 import { AudiencePage } from './pages/AudiencePage'
+import { platform } from './platform'
 import { HomePage } from './pages/HomePage'
 import { PresentPage } from './pages/PresentPage'
+import { HOME } from './utils/routes'
 
 // Import / editing pull in pdf.js, Tesseract and the PPTX parser; load them
 // on demand so launching and presenting stay light.
 const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({ default: m.ImportPage })))
 const EditorPage = lazy(() => import('./pages/EditorPage').then((m) => ({ default: m.EditorPage })))
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 
 export function App() {
   const load = useSettings((s) => s.load)
@@ -36,13 +39,20 @@ export function App() {
     <HashRouter>
       <Suspense fallback={<div className="h-full bg-app" />}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          {platform.kind === 'web' ? (
+            <>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/app" element={<HomePage />} />
+            </>
+          ) : (
+            <Route path="/" element={<HomePage />} />
+          )}
           <Route path="/import" element={<ImportPage />} />
           <Route path="/edit/:id" element={<EditorPage />} />
           <Route path="/present/:id" element={<PresentPage />} />
           <Route path="/audience/:id" element={<AudiencePage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to={HOME} replace />} />
         </Routes>
       </Suspense>
       <Toaster />

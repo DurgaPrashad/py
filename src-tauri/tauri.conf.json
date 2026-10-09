@@ -31,7 +31,9 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/**"]
+        "scope": [
+          "$APPDATA/**"
+        ]
       }
     }
   },
@@ -49,7 +51,8 @@
     ],
     "macOS": {
       "minimumSystemVersion": "11.0",
-      "entitlements": "./Entitlements.plist"
+      "entitlements": "./Entitlements.plist",
+      "signingIdentity": "-"
     }
   }
 }

@@ -47,7 +47,10 @@ Release build:
 
 ```bash
 npm run app:build    # → src-tauri/target/release/bundle/
+npm run package:mac  # build + ad-hoc sign + zip into public/downloads (served by the website's Download button)
 ```
+
+The website's front page (`/#/`) explains Reflex and offers this zip; the web app itself is at `/#/app`. The Mac app is ad-hoc signed but not notarized, so on first launch macOS asks you to allow it under *System Settings → Privacy & Security → Open Anyway*.
 
 ## Using it
 

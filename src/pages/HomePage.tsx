@@ -1,4 +1,4 @@
-import { FileText, MoreHorizontal, Pencil, Play, Plus, Presentation as PresentationIcon, Search, Settings2, Trash2, Upload } from 'lucide-react'
+import { FileText, MonitorUp, MoreHorizontal, Pencil, Play, Plus, Presentation as PresentationIcon, Search, Settings2, Trash2, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, IconButton } from '../components/Button'
@@ -124,6 +124,7 @@ export function HomePage() {
                     wpm={wpm}
                     onOpen={() => navigate(`/edit/${p.id}`)}
                     onPresent={() => navigate(`/present/${p.id}`)}
+                    onPresentCall={() => navigate(`/present/${p.id}?mode=share`)}
                     onRename={() => setRenaming(p)}
                     onDelete={() => setDeleting(p)}
                   />
@@ -191,6 +192,7 @@ function ProjectRow({
   wpm,
   onOpen,
   onPresent,
+  onPresentCall,
   onRename,
   onDelete,
 }: {
@@ -198,6 +200,7 @@ function ProjectRow({
   wpm: number
   onOpen: () => void
   onPresent: () => void
+  onPresentCall: () => void
   onRename: () => void
   onDelete: () => void
 }) {
@@ -234,6 +237,9 @@ function ProjectRow({
       <div className="flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
         <Button size="sm" variant="ghost" icon={<Pencil size={13} />} onClick={onOpen}>
           Edit
+        </Button>
+        <Button size="sm" title="Teleprompter in its own window; share only the slides on Meet, Zoom or Teams" icon={<MonitorUp size={13} />} onClick={onPresentCall}>
+          On a call
         </Button>
         <Button size="sm" variant="primary" icon={<Play size={12} fill="currentColor" />} onClick={onPresent}>
           Present

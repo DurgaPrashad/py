@@ -5,6 +5,7 @@ import {
   ClipboardCopy,
   Eraser,
   Loader2,
+  MonitorUp,
   Play,
   Plus,
   Save,
@@ -30,6 +31,7 @@ import { platform } from '../platform'
 import { errorMessage } from '../services/tauri'
 import type { Presentation, Slide } from '../types'
 import { formatDuration } from '../utils/format'
+import { HOME } from '../utils/routes'
 
 type SaveState = 'saved' | 'dirty' | 'saving'
 
@@ -57,7 +59,7 @@ export function EditorPage() {
       })
       .catch((e) => {
         toast(errorMessage(e), 'error')
-        navigate('/', { replace: true })
+        navigate(HOME, { replace: true })
       })
   }, [id, navigate])
 
@@ -175,7 +177,7 @@ export function EditorPage() {
               icon={<ArrowLeft size={14} />}
               onClick={async () => {
                 await flush()
-                navigate('/')
+                navigate(HOME)
               }}
             >
               Presentations
@@ -197,6 +199,17 @@ export function EditorPage() {
             <span className="mr-2 hidden text-[12px] text-subtle lg:inline">
               {p.slides.length} slides · ~{formatDuration(estimateMs(totalWords, wpm))}
             </span>
+            <Button
+              size="sm"
+              icon={<MonitorUp size={13} />}
+              title="Teleprompter in its own window; share only the slides on Meet, Zoom or Teams"
+              onClick={async () => {
+                await flush()
+                navigate(`/present/${p.id}?slide=${index + 1}&mode=share`)
+              }}
+            >
+              Present on a call
+            </Button>
             <Button
               size="sm"
               variant="primary"

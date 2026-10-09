@@ -19,8 +19,9 @@ import { speech } from '../services/speech/speechService'
 import { loadPresentation } from '../services/storage/projects'
 import { platform } from '../platform'
 import { errorMessage } from '../services/tauri'
-import type { Presentation, ScriptWord, VoiceCommand } from '../types'
+import type { Presentation, ScriptWord, Settings, VoiceCommand } from '../types'
 import { formatClock } from '../utils/format'
+import { HOME } from '../utils/routes'
 
 const COMMAND_LABEL: Record<VoiceCommand, string> = {
   next: 'Next slide',
@@ -71,7 +72,7 @@ export function PresentPage() {
       })
       .catch((e) => {
         toast(errorMessage(e), 'error')
-        navigate('/', { replace: true })
+        navigate(HOME, { replace: true })
       })
   }, [id, navigate])
 
@@ -232,7 +233,10 @@ export function PresentPage() {
   // calls — what you share shows only the deck, while the teleprompter lives
   // in a separate window you don't share (browser: a floating
   // picture-in-picture window; desktop: a floating strip under the camera).
-  const mode = settings.display.mode
+  // `?mode=share` ("Present on a call") overrides the saved presenter mode.
+  const modeParam = search.get('mode')
+  const mode: Settings['display']['mode'] =
+    modeParam === 'share' || modeParam === 'window' || modeParam === 'fullscreen' || modeParam === 'dual' ? modeParam : settings.display.mode
   const web = platform.kind === 'web'
   const [slidesWindow, setSlidesWindow] = useState<null | 'share' | 'display'>(null)
   const [shareStage, setShareStage] = useState<'setup' | 'live'>('setup')
@@ -240,7 +244,7 @@ export function PresentPage() {
   const engineOk = engine.status !== 'missing-model' && engine.status !== 'error'
   const shareLive = mode === 'share' && shareStage === 'live'
   const compact = shareLive && !web && engineOk
-  const compactH = Math.round(tp.fontSize * 1.94 + 26 + (showTranscript ? 22 : 0))
+  const compactH = Math.round(tp.fontSize * 1.94 + 40 + (showTranscript ? 22 : 0))
 
   const openSlidesWindow = useCallback(
     async (share: boolean) => {
@@ -607,25 +611,28 @@ function FloatingStrip({
   onExit: () => void
 }) {
   return (
-    <div className="dark group relative flex h-screen w-full items-center overflow-hidden bg-[#0b0b0e] px-4 text-fg" data-tauri-drag-region>
-      <div className="min-w-0 flex-1">{prompter}</div>
-      {chip && (
-        <div className="pointer-events-none absolute right-3 bottom-1.5 text-[11px] font-medium text-accent/90 transition-opacity group-hover:opacity-0">{chip}</div>
-      )}
-      <div className="absolute inset-y-0 right-0 flex items-center gap-0.5 bg-gradient-to-l from-[#0b0b0e] via-[#0b0b0e] to-transparent pr-2 pl-10 opacity-0 transition-opacity group-hover:opacity-100">
-        <span className="mr-1 text-[11px] text-subtle tabular">{slideLabel}</span>
-        <IconButton label="Previous slide" size="sm" onClick={onPrev}>
-          <ChevronLeft size={15} />
-        </IconButton>
-        <IconButton label="Next slide" size="sm" onClick={onNext}>
-          <ChevronRight size={15} />
-        </IconButton>
-        <IconButton label={paused ? 'Resume' : 'Pause'} size="sm" active={paused} onClick={onTogglePause}>
-          {paused ? <Play size={13} /> : <Pause size={13} />}
-        </IconButton>
-        <IconButton label="Exit" size="sm" onClick={onExit}>
-          <X size={14} />
-        </IconButton>
+    <div className="dark group relative flex h-screen w-full flex-col overflow-hidden bg-[#0b0b0e] text-fg" data-tauri-drag-region>
+      {/* Slim top row: status on the left, controls on the right (on hover). */}
+      <div className="flex h-6 shrink-0 items-center justify-between px-3 pt-1" data-tauri-drag-region>
+        <span className="truncate text-[11px] font-medium text-accent/90">{chip ?? ''}</span>
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="mr-1 text-[11px] text-subtle tabular">{slideLabel}</span>
+          <IconButton label="Previous slide" size="sm" className="!h-5 !w-5" onClick={onPrev}>
+            <ChevronLeft size={13} />
+          </IconButton>
+          <IconButton label="Next slide" size="sm" className="!h-5 !w-5" onClick={onNext}>
+            <ChevronRight size={13} />
+          </IconButton>
+          <IconButton label={paused ? 'Resume' : 'Pause'} size="sm" className="!h-5 !w-5" active={paused} onClick={onTogglePause}>
+            {paused ? <Play size={11} /> : <Pause size={11} />}
+          </IconButton>
+          <IconButton label="Exit" size="sm" className="!h-5 !w-5" onClick={onExit}>
+            <X size={12} />
+          </IconButton>
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-1 items-center px-4 pb-2">
+        <div className="min-w-0 flex-1">{prompter}</div>
       </div>
     </div>
   )
@@ -647,8 +654,8 @@ function ShareSetup({ web, pipSupported, onStart, onCancel }: { web: boolean; pi
         ]
     : [
         'Click Start. Your slides fill the screen in their own window and the teleprompter floats just under your camera.',
-        'In Google Meet, Zoom or Teams choose Share → Window → “Reflex — Slides (share this window)”.',
-        'Your audience sees only the slides. Use ← → or say “Next”; press Esc to finish.',
+        'In Google Meet, Zoom or Teams choose Share → Window → “Reflex — Slides (share this window)” — not “Entire screen”.',
+        'Your audience sees only that window: the slides. The teleprompter floating on top of it is a separate window and is not shared. Use ← → or say “Next”; Esc to finish.',
       ]
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 p-8 backdrop-blur-sm animate-fade-in">
