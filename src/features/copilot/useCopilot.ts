@@ -4,7 +4,8 @@ import type { CallListener } from '../../platform/web/speech/callListener'
 import { errorMessage } from '../../services/tauri'
 import type { Presentation } from '../../types'
 import { useAccount } from '../account/account'
-import { askCopilot, CopilotError, deckContext } from './api'
+import { useSettings } from '../settings/settingsStore'
+import { CopilotError, deckContext, runCopilot } from './api'
 import { QuestionTracker } from './questions'
 
 export interface QA {
@@ -12,6 +13,7 @@ export interface QA {
   question: string
   source: 'call' | 'typed'
   status: 'answering' | 'done' | 'error'
+  /** Streams in while status is 'answering'. */
   answer?: string
   error?: string
   /** SI_REQUIRED etc., to offer an upgrade. */
@@ -30,7 +32,9 @@ export function useCopilot(p: Presentation | null, slideIndex: number, modelId: 
   const [items, setItems] = useState<QA[]>([])
   const [listen, setListen] = useState<ListenState>({ state: 'idle' })
   const [caption, setCaption] = useState('')
-  const [autoAnswer, setAutoAnswer] = useState(true)
+  const autoAnswer = useSettings((s) => s.settings.si.autoAnswer)
+  const updateSettings = useSettings((s) => s.update)
+  const setAutoAnswer = useCallback((on: boolean) => updateSettings('si', { autoAnswer: on }), [updateSettings])
   const listener = useRef<CallListener | null>(null)
   const tracker = useRef(new QuestionTracker())
   const latest = useRef({ p, slideIndex, autoAnswer })
@@ -44,11 +48,12 @@ export function useCopilot(p: Presentation | null, slideIndex: number, modelId: 
     const { p: deck, slideIndex: at } = latest.current
     if (!deck) return
     try {
-      const res = await askCopilot(question, deckContext(deck, at))
+      const si = useSettings.getState().settings.si
+      const res = await runCopilot(si, 'answer', question, deckContext(deck, at), (soFar) => update(id, { answer: soFar }))
       update(id, { status: 'done', answer: res.text })
       if (!res.si) void useAccount.getState().refresh().catch(() => null)
     } catch (e) {
-      update(id, { status: 'error', error: errorMessage(e), code: e instanceof CopilotError ? e.code : null })
+      update(id, { status: 'error', answer: undefined, error: errorMessage(e), code: e instanceof CopilotError ? e.code : null })
     }
   }, [])
 

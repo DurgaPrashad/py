@@ -1,9 +1,13 @@
-import { ArrowLeft, Mic, RotateCcw, Square } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, Eye, EyeOff, Loader2, Mic, PlugZap, RotateCcw, Sparkles, Square } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Kbd, Segmented, Select, Slider, Toggle } from '../components/controls'
 import { TitleBar } from '../components/TitleBar'
+import { PRODUCT } from '../config'
+import { daysLeft, entitlements, useAccount } from '../features/account/account'
+import { builtInAvailable } from '../features/copilot/api'
+import { complete, PROVIDERS } from '../features/copilot/providers'
 import { DEFAULT_SETTINGS } from '../features/settings/defaults'
 import { useSettings } from '../features/settings/settingsStore'
 import { MicStatus } from '../features/speech/MicStatus'
@@ -15,9 +19,11 @@ import { tokenizeScript } from '../services/alignment/normalize'
 import { speech } from '../services/speech/speechService'
 import { dataLocation } from '../services/storage/projects'
 import { platform } from '../platform'
-import type { InputDevice, ModelInfo, MonitorInfo, ShortcutAction, VoiceCommand } from '../types'
+import { errorMessage } from '../services/tauri'
+import type { InputDevice, ModelInfo, MonitorInfo, OwnKeyProvider, ShortcutAction, VoiceCommand } from '../types'
 
 const SECTIONS = [
+  ['si', 'SI copilot'],
   ['speech', 'Speech'],
   ['teleprompter', 'Teleprompter'],
   ['presenting', 'Presenting'],
@@ -68,7 +74,18 @@ export function SettingsPage() {
   const navigate = useNavigate()
   const settings = useSettings((s) => s.settings)
   const update = useSettings((s) => s.update)
-  const [active, setActive] = useState<string>('speech')
+  const { hash } = useLocation()
+  const [active, setActive] = useState<string>(() => (SECTIONS.some(([id]) => `#${id}` === hash) ? hash.slice(1) : 'si'))
+
+  useEffect(() => {
+    document.title = `Settings · ${PRODUCT}`
+  }, [])
+
+  // Deep links such as /settings#si (from the SI copilot panel).
+  useEffect(() => {
+    const id = hash.slice(1)
+    if (SECTIONS.some(([s]) => s === id)) document.getElementById(`section-${id}`)?.scrollIntoView({ block: 'start' })
+  }, [hash])
 
   return (
     <div className="flex h-full flex-col">
@@ -101,6 +118,8 @@ export function SettingsPage() {
         </nav>
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[760px] px-10 pt-8 pb-24">
+            <SiSection />
+
             <SpeechSection />
 
             <Section id="teleprompter" title="Teleprompter" description="How the live 8-word strip looks while you present.">
@@ -523,5 +542,245 @@ function StorageRow() {
         {dir}
       </span>
     </Row>
+  )
+}
+
+// ------------------------------------------------------------------ SI copilot
+
+const PROVIDER_ORDER: OwnKeyProvider[] = ['anthropic', 'openai', 'gemini', 'groq', 'openrouter', 'custom']
+
+function SiSection() {
+  const si = useSettings((s) => s.settings.si)
+  const update = useSettings((s) => s.update)
+  const session = useAccount((s) => s.session)
+  const profile = useAccount((s) => s.profile)
+  const ent = entitlements(profile)
+  const [builtIn, setBuiltIn] = useState<boolean | null>(null)
+  const [showKey, setShowKey] = useState(false)
+  const [test, setTest] = useState<{ state: 'idle' | 'running' | 'ok' | 'error'; message?: string }>({ state: 'idle' })
+  const own = si.provider === 'reflex' ? null : si.provider
+
+  useEffect(() => {
+    if (!session) return
+    builtInAvailable()
+      .then(setBuiltIn)
+      .catch(() => setBuiltIn(false))
+  }, [session])
+  useEffect(() => setTest({ state: 'idle' }), [si.provider])
+
+  const setKey = (v: string) => own && update('si', { keys: { ...si.keys, [own]: v } })
+  const setModel = (v: string) => own && update('si', { models: { ...si.models, [own]: v } })
+
+  const runTest = async () => {
+    setTest({ state: 'running' })
+    const started = performance.now()
+    try {
+      const text = await complete(si, {
+        system: 'You are a connection test. Reply with a short greeting of at most five words.',
+        material: 'Connection test from Reflex Presenter.',
+        prompt: 'Say hello.',
+        maxTokens: 1000,
+      })
+      setTest({ state: 'ok', message: `Connected in ${((performance.now() - started) / 1000).toFixed(1)} s — “${text.slice(0, 60)}”` })
+    } catch (e) {
+      setTest({ state: 'error', message: errorMessage(e) })
+    }
+  }
+
+  const planLine = !session ? (
+    <>
+      <Link to="/login" className="font-medium text-accent hover:underline">
+        Sign in
+      </Link>{' '}
+      to use SI.
+    </>
+  ) : ent.si ? (
+    <>SI plan active — {daysLeft(profile?.si_until ?? null)} days left.</>
+  ) : (
+    <>
+      {ent.freeAnswersLeft > 0 ? `${ent.freeAnswersLeft} free SI answers left to try. ` : 'Your free SI answers are used up. '}
+      <Link to="/account?plan=si_monthly" className="font-medium text-accent hover:underline">
+        Get SI
+      </Link>{' '}
+      for unlimited use.
+    </>
+  )
+
+  return (
+    <Section
+      id="si"
+      title="SI copilot"
+      description="Smart Intelligence suggests answers to the questions people ask on your calls, from your deck and Q&A prep notes. Use the built-in AI, or connect any AI provider with your own API key."
+    >
+      <div className="flex items-center gap-2.5 py-3.5 text-[13px] text-muted">
+        <Sparkles size={15} className="shrink-0 text-accent" />
+        <span>{planLine}</span>
+      </div>
+
+      <div className="py-4">
+        <div className="mb-2.5 text-[13.5px]">AI provider</div>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <ProviderCard
+            active={si.provider === 'reflex'}
+            title="Built-in AI"
+            subtitle={builtIn === null ? 'Claude, no key needed' : builtIn ? 'Ready · no key needed' : 'Not switched on yet'}
+            warn={builtIn === false}
+            onClick={() => update('si', { provider: 'reflex' })}
+          />
+          {PROVIDER_ORDER.map((p) => (
+            <ProviderCard
+              key={p}
+              active={si.provider === p}
+              title={PROVIDERS[p].label}
+              subtitle={si.keys[p] || PROVIDERS[p].keyOptional ? si.models[p] || 'Choose a model' : 'Add your API key'}
+              ready={!!si.keys[p] || (!!PROVIDERS[p].keyOptional && !!si.models[p])}
+              onClick={() => update('si', { provider: p })}
+            />
+          ))}
+        </div>
+      </div>
+
+      {own ? (
+        <>
+          <Row label="API key" hint={`Stored only on this device. Requests go straight from here to ${PROVIDERS[own].label}; the key never reaches our servers.`}>
+            <div className="flex w-full items-center gap-1.5">
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={si.keys[own]}
+                onChange={(e) => setKey(e.target.value.trim())}
+                placeholder={PROVIDERS[own].keyPlaceholder}
+                autoComplete="off"
+                spellCheck={false}
+                className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-app px-2.5 font-mono text-[12.5px] text-fg outline-none placeholder:font-sans placeholder:text-subtle focus:border-accent"
+              />
+              <button
+                type="button"
+                title={showKey ? 'Hide key' : 'Show key'}
+                onClick={() => setShowKey((v) => !v)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-fg"
+              >
+                {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+          </Row>
+          {own === 'custom' && (
+            <Row label="API base URL" hint="The part before /chat/completions — e.g. http://localhost:11434/v1 (Ollama) or https://api.deepseek.com/v1.">
+              <input
+                value={si.baseUrl}
+                onChange={(e) => update('si', { baseUrl: e.target.value.trim() })}
+                placeholder="https://…/v1"
+                spellCheck={false}
+                className="h-8 w-full rounded-lg border border-line bg-app px-2.5 font-mono text-[12.5px] text-fg outline-none focus:border-accent"
+              />
+            </Row>
+          )}
+          <Row label="Model" hint={PROVIDERS[own].note}>
+            <input
+              list={`models-${own}`}
+              value={si.models[own]}
+              onChange={(e) => setModel(e.target.value.trim())}
+              spellCheck={false}
+              className="h-8 w-full rounded-lg border border-line bg-app px-2.5 font-mono text-[12.5px] text-fg outline-none focus:border-accent"
+            />
+            <datalist id={`models-${own}`}>
+              {PROVIDERS[own].models.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+          </Row>
+          <div className="flex items-center justify-between gap-6 py-3">
+            <div className="min-w-0">
+              <div className="text-[13.5px]">Test connection</div>
+              <div
+                className={`mt-0.5 text-[12px] leading-snug ${test.state === 'ok' ? 'text-success' : test.state === 'error' ? 'text-danger' : 'text-subtle'}`}
+              >
+                {test.message ?? 'Sends a tiny request with this key and model.'}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {PROVIDERS[own].keyUrl && (
+                <a href={PROVIDERS[own].keyUrl!} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[12.5px] text-muted hover:text-fg">
+                  Get a key <ExternalLink size={12} />
+                </a>
+              )}
+              <Button
+                size="sm"
+                icon={test.state === 'running' ? <Loader2 size={13} className="animate-spin" /> : test.state === 'ok' ? <Check size={13} /> : <PlugZap size={13} />}
+                disabled={test.state === 'running' || (!si.keys[own] && !PROVIDERS[own].keyOptional)}
+                onClick={runTest}
+              >
+                Test
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : (
+        builtIn === false && (
+          <div className="py-3.5 text-[12.5px] leading-relaxed text-warning">
+            The built-in AI isn't switched on for this site yet — choose a provider above and add your own API key.
+          </div>
+        )
+      )}
+
+      <Row label="Answer length" hint="How much the copilot writes for each question.">
+        <Segmented
+          value={si.answerLength}
+          onChange={(answerLength) => update('si', { answerLength })}
+          options={[
+            { value: 'short', label: 'Short' },
+            { value: 'standard', label: 'Standard' },
+            { value: 'detailed', label: 'Detailed' },
+          ]}
+        />
+      </Row>
+      <div className="py-4">
+        <div className="text-[13.5px]">Custom instructions</div>
+        <div className="mt-0.5 text-[12px] text-subtle">Applied to every answer and AI script draft — tone, facts to always mention, words to avoid.</div>
+        <textarea
+          value={si.instructions}
+          onChange={(e) => update('si', { instructions: e.target.value })}
+          rows={3}
+          maxLength={2000}
+          placeholder="e.g. Sound confident but humble. Mention that we're SOC 2 compliant when security comes up. Use US dollars."
+          className="mt-2.5 w-full resize-y rounded-lg border border-line bg-app px-3 py-2 text-[13px] leading-relaxed text-fg outline-none placeholder:text-subtle focus:border-accent"
+        />
+      </div>
+      <Row label="Answer detected questions automatically" hint="Off: questions heard on the call are listed, and you click to get an answer.">
+        <Toggle checked={si.autoAnswer} onChange={(autoAnswer) => update('si', { autoAnswer })} />
+      </Row>
+    </Section>
+  )
+}
+
+function ProviderCard({
+  active,
+  title,
+  subtitle,
+  ready,
+  warn,
+  onClick,
+}: {
+  active: boolean
+  title: string
+  subtitle: string
+  ready?: boolean
+  warn?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex min-w-0 flex-col items-start rounded-xl border px-3 py-2.5 text-left transition-colors ${
+        active ? 'border-accent/60 bg-accent-soft' : 'border-line bg-surface hover:bg-hover'
+      }`}
+    >
+      <span className="flex w-full items-center gap-1.5 text-[13px] font-medium">
+        <span className="truncate">{title}</span>
+        {ready && <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-success" title="Key added" />}
+      </span>
+      <span className={`mt-0.5 w-full truncate text-[11.5px] ${warn ? 'text-warning' : 'text-subtle'}`}>{subtitle}</span>
+    </button>
   )
 }

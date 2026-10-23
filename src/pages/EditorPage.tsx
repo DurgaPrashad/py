@@ -22,7 +22,7 @@ import { Modal } from '../components/Modal'
 import { TitleBar } from '../components/TitleBar'
 import { toast } from '../components/Toast'
 import { useAccount } from '../features/account/account'
-import { askCopilot, deckContext } from '../features/copilot/api'
+import { deckContext, runCopilot } from '../features/copilot/api'
 import { useSettings } from '../features/settings/settingsStore'
 import { ConfidenceBadge } from '../features/slides/ConfidenceBadge'
 import { SlideImage } from '../features/slides/SlideImage'
@@ -162,7 +162,7 @@ export function EditorPage() {
     }
     setDrafting(true)
     try {
-      const res = await askCopilot(source, deckContext(p, index), 'script')
+      const res = await runCopilot(useSettings.getState().settings.si, 'script', source, deckContext(p, index))
       updateSlide(index, { script: res.text })
       toast(res.si ? 'Script drafted — edit it to sound like you.' : `Script drafted. ${res.free_left} free SI answers left.`, 'success')
       if (!res.si) void useAccount.getState().refresh().catch(() => null)

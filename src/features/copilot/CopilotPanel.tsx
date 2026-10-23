@@ -1,10 +1,12 @@
-import { Headphones, Keyboard, Loader2, RotateCcw, Send, Sparkles, Square, X } from 'lucide-react'
+import { Check, Copy, Headphones, Keyboard, Loader2, RotateCcw, Send, Settings2, Sparkles, Square, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button, IconButton } from '../../components/Button'
 import { Toggle } from '../../components/controls'
 import { SITE_URL } from '../../config'
 import { platform } from '../../platform'
 import { entitlements, useAccount } from '../account/account'
+import { useSettings } from '../settings/settingsStore'
+import { PROVIDERS } from './providers'
 import type { Copilot, QA } from './useCopilot'
 
 /** Opens a site page without leaving the presentation. */
@@ -22,6 +24,8 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
   const session = useAccount((s) => s.session)
   const profile = useAccount((s) => s.profile)
   const ent = entitlements(profile)
+  const provider = useSettings((s) => s.settings.si.provider)
+  const model = useSettings((s) => (s.settings.si.provider === 'reflex' ? '' : s.settings.si.models[s.settings.si.provider]))
   const [draft, setDraft] = useState('')
   const strip = variant === 'strip'
   const { listen, caption, items } = copilot
@@ -43,6 +47,16 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
         </span>
       )}
       <div className="flex-1" />
+      {!strip && (
+        <span className="max-w-[120px] truncate text-[10.5px] text-subtle" title={provider === 'reflex' ? 'Built-in AI' : `${PROVIDERS[provider].label} · ${model} · your API key`}>
+          {provider === 'reflex' ? 'Built-in AI' : model || PROVIDERS[provider].label}
+        </span>
+      )}
+      {!strip && platform.kind === 'web' && (
+        <IconButton label="SI settings — choose the AI and API key" size="sm" onClick={() => openSite('/settings#si')}>
+          <Settings2 size={13} />
+        </IconButton>
+      )}
       {!strip && items.length > 0 && (
         <button type="button" onClick={copilot.clear} className="text-[11.5px] text-subtle hover:text-fg">
           Clear
@@ -175,7 +189,12 @@ function Card({ q, strip, onAnswer }: { q: QA; strip: boolean; onAnswer: () => v
         {q.source === 'call' ? <Headphones size={11} className="mt-0.5 shrink-0" /> : <Keyboard size={11} className="mt-0.5 shrink-0" />}
         <span className={strip ? 'line-clamp-1' : 'line-clamp-3'}>{q.question}</span>
       </div>
-      {q.status === 'answering' ? (
+      {q.status === 'answering' && q.answer ? (
+        <p className={`mt-1.5 leading-relaxed whitespace-pre-line text-fg ${strip ? 'text-[14px]' : 'text-[14.5px]'}`}>
+          {q.answer}
+          <span className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] bg-accent animate-pulse-dot" />
+        </p>
+      ) : q.status === 'answering' ? (
         <div className="mt-2 flex items-center gap-2 text-[12.5px] text-muted">
           <Loader2 size={13} className="animate-spin text-accent" /> Writing an answer…
         </div>
@@ -186,6 +205,10 @@ function Card({ q, strip, onAnswer }: { q: QA; strip: boolean; onAnswer: () => v
             <Button size="sm" variant="primary" onClick={() => openSite('/account?plan=si_monthly')}>
               Upgrade
             </Button>
+          ) : q.code === 'AI_NOT_CONFIGURED' && platform.kind === 'web' ? (
+            <Button size="sm" variant="primary" onClick={() => openSite('/settings#si')}>
+              Add API key
+            </Button>
           ) : (
             <IconButton label="Try again" size="sm" onClick={onAnswer}>
               <RotateCcw size={12} />
@@ -193,12 +216,35 @@ function Card({ q, strip, onAnswer }: { q: QA; strip: boolean; onAnswer: () => v
           )}
         </div>
       ) : q.answer ? (
-        <p className={`mt-1.5 leading-relaxed whitespace-pre-line text-fg ${strip ? 'text-[14px]' : 'text-[14.5px]'}`}>{q.answer}</p>
+        <div className="group/answer relative">
+          <p className={`mt-1.5 leading-relaxed whitespace-pre-line text-fg ${strip ? 'text-[14px]' : 'pr-6 text-[14.5px]'}`}>{q.answer}</p>
+          {!strip && <CopyButton text={q.answer} />}
+        </div>
       ) : (
         <Button size="sm" className="mt-2" onClick={onAnswer}>
           Suggest an answer
         </Button>
       )}
     </div>
+  )
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      title="Copy answer"
+      aria-label="Copy answer"
+      onClick={() => {
+        void navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1200)
+        })
+      }}
+      className="absolute top-0 right-0 rounded-md p-1 text-subtle opacity-0 transition-opacity group-hover/answer:opacity-100 hover:bg-hover hover:text-fg"
+    >
+      {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+    </button>
   )
 }

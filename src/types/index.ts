@@ -56,6 +56,10 @@ export type ShortcutAction = 'next' | 'previous' | 'togglePause' | 'restart' | '
 
 export type HighlightStyle = 'pill' | 'underline' | 'color' | 'bold'
 
+/** Where SI copilot answers come from: the built-in AI, or the presenter's own API key. */
+export type AiProvider = 'reflex' | 'anthropic' | 'openai' | 'gemini' | 'groq' | 'openrouter' | 'custom'
+export type OwnKeyProvider = Exclude<AiProvider, 'reflex'>
+
 export interface Settings {
   version: 2
   speech: {
@@ -108,6 +112,19 @@ export interface Settings {
   }
   shortcuts: Record<ShortcutAction, string>
   wordsPerMinute: number
+  /** SI copilot. API keys are stored only on this device. */
+  si: {
+    provider: AiProvider
+    keys: Record<OwnKeyProvider, string>
+    models: Record<OwnKeyProvider, string>
+    /** OpenAI-compatible endpoint for the custom provider (Ollama, LM Studio, DeepSeek, Together…). */
+    baseUrl: string
+    answerLength: 'short' | 'standard' | 'detailed'
+    /** Extra guidance for every answer, e.g. "Always mention we're SOC 2 compliant". */
+    instructions: string
+    /** Answer questions heard on the call without a click. */
+    autoAnswer: boolean
+  }
 }
 
 export interface ModelInfo {

@@ -63,8 +63,13 @@ export function PrivacyPage() {
         </li>
         <li>
           <strong>SI copilot requests:</strong> when you ask the copilot (or it detects a question on your call), the question text and the relevant text
-          of your deck, scripts and Q&A prep notes are sent to our AI provider to generate the answer. We do not store the questions or answers; we
-          keep only a count of requests to apply plan limits.
+          of your deck, scripts and Q&A prep notes are sent to an AI provider to generate the answer — our built-in provider, or the provider you
+          chose in Settings → SI. We do not store the questions or answers; we keep only a count of requests to apply plan limits.
+        </li>
+        <li>
+          <strong>Your own AI API keys:</strong> if you add an API key for a provider such as OpenAI, Anthropic or Google in Settings → SI, it is
+          stored only on your device and requests go directly from your device to that provider, under its terms and privacy policy. We never
+          receive your key.
         </li>
         <li>
           <strong>Messages you send us</strong> through the contact form: your name, email and message.
@@ -96,7 +101,11 @@ export function PrivacyPage() {
           </tr>
           <tr>
             <td>Anthropic (Claude API)</td>
-            <td>Generating SI copilot answers and AI script drafts</td>
+            <td>Generating SI copilot answers and AI script drafts with the built-in AI</td>
+          </tr>
+          <tr>
+            <td>The AI provider you choose</td>
+            <td>Only if you add your own API key in Settings → SI; requests go straight from your device to it</td>
           </tr>
           <tr>
             <td>Vercel</td>
@@ -201,7 +210,8 @@ export function TermsPage() {
       <h2>6. AI-generated content</h2>
       <p>
         Copilot answers and script drafts are generated automatically from the material you provide. They can be incomplete or wrong. Review them
-        before you rely on them; you are responsible for what you say and present.
+        before you rely on them; you are responsible for what you say and present. If you connect your own AI provider, its terms and charges apply
+        to that usage and you are responsible for your API key.
       </p>
 
       <h2>7. Your content</h2>

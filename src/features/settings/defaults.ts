@@ -53,6 +53,22 @@ export const DEFAULT_SETTINGS: Settings = {
     exit: 'Escape',
   },
   wordsPerMinute: 140,
+  si: {
+    provider: 'reflex',
+    keys: { anthropic: '', openai: '', gemini: '', groq: '', openrouter: '', custom: '' },
+    models: {
+      anthropic: 'claude-opus-5-5',
+      openai: 'gpt-5-mini',
+      gemini: 'gemini-2.5-flash',
+      groq: 'llama-3.3-70b-versatile',
+      openrouter: 'openai/gpt-5-mini',
+      custom: 'llama3.1',
+    },
+    baseUrl: 'http://localhost:11434/v1',
+    answerLength: 'standard',
+    instructions: '',
+    autoAnswer: true,
+  },
 }
 
 type Plain = Record<string, unknown>

@@ -60,7 +60,8 @@ const SI_FEATURES = [
   'Answers grounded in your deck, scripts and Q&A prep notes',
   'Type any question mid-call for an instant talking point',
   'AI drafts a speaking script for any slide',
-  `Up to ${AI_DAILY_LIMIT} AI answers a day`,
+  'Built-in AI, or plug in your own API key: Claude, OpenAI, Gemini, Groq, OpenRouter or any OpenAI-compatible API',
+  `Up to ${AI_DAILY_LIMIT} answers a day with the built-in AI — no limit with your own key`,
 ]
 
 export function PricingTable() {

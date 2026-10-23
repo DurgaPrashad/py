@@ -32,6 +32,7 @@ Plans are prepaid (Razorpay Orders, USD) and never renew automatically.
   ```
 - **Settings** (`private.settings`): AI model and effort, free SI answers, trial length, daily AI limit, sign-up rate limit. Prices: `private.plans` (keep `src/config.ts` in step).
 - **Public client config:** `src/config.ts` (Supabase URL + publishable key; override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`).
+- **SI with any AI:** *Settings → SI copilot* picks the built-in AI (server-side, site key) or the presenter's own API key for Anthropic Claude, OpenAI, Google Gemini, Groq, OpenRouter or any OpenAI-compatible endpoint (Ollama, LM Studio, DeepSeek…). Own keys stay on the device; answers stream straight from the provider (`src/features/copilot/providers.ts`), and `claim_copilot_use` still checks the SI plan / trial. Answer length and custom instructions apply to both.
 - **SI copilot:** in presentation mode press `Q` (or the ✦ button). *Listen to the call* shares the meeting tab's audio (Chrome/Edge, “Also share tab audio”); it is transcribed on-device by a second Whisper worker, questions are detected (`src/features/copilot/questions.ts`) and only the question plus deck text is sent for an answer. Typed questions work everywhere. The editor's *Q&A prep notes* and *Draft with AI* use the same function.
 - **Website pages:** `/`, `/pricing`, `/privacy`, `/terms`, `/refunds`, `/shipping`, `/cookies`, `/contact`, `/login`, `/signup`, `/account`. The web app is at `/app` and needs an account; presenting needs the trial or a plan.
 
