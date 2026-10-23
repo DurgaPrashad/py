@@ -317,6 +317,22 @@ pub fn close_audience_window(app: AppHandle) -> CmdResult<()> {
     Ok(())
 }
 
+/// Open a web page (pricing, account, an AI provider's key page) in the
+/// default browser. Only https links are allowed.
+#[tauri::command]
+pub fn open_external(url: String) -> CmdResult<()> {
+    if !url.starts_with("https://") || url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return err("Only https:// links can be opened.");
+    }
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open").arg(&url).spawn()?;
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer").arg(&url).spawn()?;
+    #[cfg(all(unix, not(target_os = "macos")))]
+    std::process::Command::new("xdg-open").arg(&url).spawn()?;
+    Ok(())
+}
+
 /// Open the OS page where the user allows meeting apps (Zoom, Chrome, Teams)
 /// to capture the screen. Without that permission macOS hands those apps a
 /// blank picture of other apps' windows.

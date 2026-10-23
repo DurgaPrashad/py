@@ -100,7 +100,8 @@ export function SettingsPage() {
         }
       />
       <div className="flex min-h-0 flex-1">
-        <nav className="w-[200px] shrink-0 border-r border-line px-3 py-5">
+        <nav className="flex w-[220px] shrink-0 flex-col border-r border-line px-3 py-5">
+          <AccountCard />
           {SECTIONS.map(([id, label]) => (
             <a
               key={id}
@@ -146,13 +147,13 @@ export function SettingsPage() {
                   format={(v) => (v > 480 ? 'Snappy' : v > 300 ? 'Smooth' : 'Gentle')}
                 />
               </Row>
-              <Row label="Position" hint="Under camera keeps the text right below your webcam, so you look into the lens while reading.">
+              <Row label="Position" hint="Top bar (default) runs across the top of the screen, close to your webcam. Under camera is a compact strip right below the lens.">
                 <Segmented
                   value={settings.teleprompter.position}
                   onChange={(position) => update('teleprompter', { position })}
                   options={[
-                    { value: 'camera', label: 'Under camera' },
                     { value: 'top', label: 'Top bar' },
+                    { value: 'camera', label: 'Under camera' },
                     { value: 'bottom', label: 'Bottom bar' },
                   ]}
                 />
@@ -699,9 +700,13 @@ function SiSection() {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {PROVIDERS[own].keyUrl && (
-                <a href={PROVIDERS[own].keyUrl!} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[12.5px] text-muted hover:text-fg">
+                <button
+                  type="button"
+                  onClick={() => void platform.openExternal(PROVIDERS[own].keyUrl!).catch(() => null)}
+                  className="flex items-center gap-1 text-[12.5px] text-muted hover:text-fg"
+                >
                   Get a key <ExternalLink size={12} />
-                </a>
+                </button>
               )}
               <Button
                 size="sm"
@@ -782,5 +787,67 @@ function ProviderCard({
       </span>
       <span className={`mt-0.5 w-full truncate text-[11.5px] ${warn ? 'text-warning' : 'text-subtle'}`}>{subtitle}</span>
     </button>
+  )
+}
+
+/** Who is signed in (name and email), their plan, and account actions. */
+function AccountCard() {
+  const navigate = useNavigate()
+  const session = useAccount((s) => s.session)
+  const profile = useAccount((s) => s.profile)
+  const signOut = useAccount((s) => s.signOut)
+  const ent = entitlements(profile)
+
+  if (!session) {
+    return (
+      <div className="mb-5 rounded-xl border border-line bg-surface p-3">
+        <div className="text-[12.5px] leading-snug text-muted">Not signed in. Sign in with the email you use on the website to bring your plan here.</div>
+        <Button size="sm" variant="primary" className="mt-2.5 w-full" onClick={() => navigate('/login?next=/settings')}>
+          Sign in
+        </Button>
+      </div>
+    )
+  }
+  const email = profile?.email ?? session.user.email ?? ''
+  const name = profile?.full_name?.trim() || email.split('@')[0]
+  return (
+    <div className="mb-5 rounded-xl border border-line bg-surface p-3">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[13px] font-semibold text-accent uppercase">
+          {name.slice(0, 1)}
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-medium text-fg" title={name}>
+            {name}
+          </div>
+          <div className="truncate text-[11.5px] text-subtle" title={email}>
+            {email}
+          </div>
+        </div>
+      </div>
+      <span
+        className={`mt-2.5 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap ${
+          ent.si ? 'bg-accent-soft text-accent' : ent.standard ? 'bg-hover text-fg' : ent.trial ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'
+        }`}
+      >
+        {ent.planName}
+        {ent.trial && profile ? ` · ${daysLeft(profile.trial_until)} days left` : ''}
+      </span>
+      <div className="mt-2.5 flex items-center gap-3 border-t border-line pt-2.5 text-[12px]">
+        <Link to="/account" className="text-muted hover:text-fg">
+          Manage account
+        </Link>
+        <button
+          type="button"
+          className="ml-auto text-muted hover:text-fg"
+          onClick={async () => {
+            await signOut()
+            navigate('/login', { replace: true })
+          }}
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
   )
 }

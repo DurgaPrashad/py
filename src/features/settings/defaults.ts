@@ -3,7 +3,7 @@ import { isTauri } from '../../services/tauri'
 import type { Settings } from '../../types'
 
 export const DEFAULT_SETTINGS: Settings = {
-  version: 2,
+  version: 3,
   speech: {
     // The browser runs Whisper on WebGPU; Tiny keeps updates live there.
     modelId: isTauri() ? 'base.en' : 'tiny.en',
@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS: Settings = {
     fontSize: 40,
     width: 72,
     opacity: 0.92,
-    position: 'camera',
+    position: 'top',
     align: 'center',
     highlightStyle: 'pill',
     highlightTarget: 'spoken',
@@ -106,6 +106,10 @@ function migrate(s: Settings, from: number): Settings {
       tp.width = DEFAULT_SETTINGS.teleprompter.width
     }
     s = { ...s, speech: sp, teleprompter: tp }
+  }
+  if (from < 3) {
+    // The top bar became the default layout; "under camera" stays one click away.
+    if (s.teleprompter.position === 'camera') s = { ...s, teleprompter: { ...s.teleprompter, position: 'top' } }
   }
   return { ...s, version: DEFAULT_SETTINGS.version }
 }

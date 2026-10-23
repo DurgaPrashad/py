@@ -8,8 +8,9 @@ import { useAccount } from '../../features/account/account'
 const NAV = [
   { to: '/#product', label: 'Product' },
   { to: '/#copilot', label: 'SI copilot' },
-  { to: '/#use-cases', label: 'Use cases' },
   { to: '/pricing', label: 'Pricing' },
+  { to: '/docs', label: 'Docs' },
+  { to: '/download', label: 'Download' },
 ]
 
 /**
@@ -25,11 +26,25 @@ export function SiteShell({ children, title }: { children: ReactNode; title?: st
   }, [title])
 
   // Section links (/#copilot) scroll to the section; page changes start at the top.
+  // On first load the jump is instant and waits a moment for fonts and layout.
+  const lastTarget = useRef<string | null>(null)
   useEffect(() => {
+    const target = pathname + hash
+    // Smooth only when moving within the page (not on load, nor on a re-run for the same target).
+    const smooth = lastTarget.current !== null && lastTarget.current !== target
+    lastTarget.current = target
     const id = hash.slice(1)
     const el = id && /^[\w-]+$/.test(id) ? document.getElementById(id) : null
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    else scroller.current?.scrollTo({ top: 0 })
+    if (!el) {
+      scroller.current?.scrollTo({ top: 0 })
+      return
+    }
+    if (smooth) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    const t = setTimeout(() => el.scrollIntoView({ block: 'start' }), 120)
+    return () => clearTimeout(t)
   }, [pathname, hash])
 
   return (
@@ -139,8 +154,9 @@ function SiteFooter() {
         </div>
         {col('Product', [
           ['/app', 'Web app'],
+          ['/download', 'Mac app'],
           ['/pricing', 'Pricing'],
-          ['/#download', 'Mac app'],
+          ['/docs', 'Docs'],
           ['/account', 'Your account'],
         ])}
         {col('Support', [

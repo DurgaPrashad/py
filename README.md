@@ -34,7 +34,7 @@ Plans are prepaid (Razorpay Orders, USD) and never renew automatically.
 - **Public client config:** `src/config.ts` (Supabase URL + publishable key; override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`).
 - **SI with any AI:** *Settings → SI copilot* picks the built-in AI (server-side, site key) or the presenter's own API key for Anthropic Claude, OpenAI, Google Gemini, Groq, OpenRouter or any OpenAI-compatible endpoint (Ollama, LM Studio, DeepSeek…). Own keys stay on the device; answers stream straight from the provider (`src/features/copilot/providers.ts`), and `claim_copilot_use` still checks the SI plan / trial. Answer length and custom instructions apply to both.
 - **SI copilot:** in presentation mode press `Q` (or the ✦ button). *Listen to the call* shares the meeting tab's audio (Chrome/Edge, “Also share tab audio”); it is transcribed on-device by a second Whisper worker, questions are detected (`src/features/copilot/questions.ts`) and only the question plus deck text is sent for an answer. Typed questions work everywhere. The editor's *Q&A prep notes* and *Draft with AI* use the same function.
-- **Website pages:** `/`, `/pricing`, `/privacy`, `/terms`, `/refunds`, `/shipping`, `/cookies`, `/contact`, `/login`, `/signup`, `/account`. The web app is at `/app` and needs an account; presenting needs the trial or a plan.
+- **Website pages:** `/`, `/pricing`, `/docs` (every feature, documented), `/download` (Mac app install guide), `/privacy`, `/terms`, `/refunds`, `/shipping`, `/cookies`, `/contact`, `/login`, `/signup`, `/account`. Settings shows the signed-in name, email and plan; the Mac app signs in with the same account. The web app is at `/app` and needs an account; presenting needs the trial or a plan.
 
 ## Web app
 
@@ -73,6 +73,7 @@ Release build:
 ```bash
 npm run app:build    # → src-tauri/target/release/bundle/
 npm run package:mac  # build + ad-hoc sign + zip into public/downloads (served by the website's Download button)
+                     # (the desktop build strips website-only files: public/downloads, public/__dev__)
 ```
 
 The website's front page (`/`) explains Reflex and offers this zip; the web app itself is at `/app`. The Mac app is ad-hoc signed but not notarized, so on first launch macOS asks you to allow it under *System Settings → Privacy & Security → Open Anyway*.
@@ -82,7 +83,7 @@ The website's front page (`/`) explains Reflex and offers this zip; the web app 
 1. **Home** — create a blank presentation, import a PDF, or import PPTX/PPT (or drag a file onto the window). Search, rename, delete; each deck shows its slide count, last edit and estimated speaking time.
 2. **Import** — every slide is rendered, its text extracted (with OCR fallback for text inside images), and a confidence score is shown. Scripts are pre-filled from speaker notes when the deck has them, otherwise from the slide text when extraction is trustworthy. Low-confidence OCR text is never silently turned into a script.
 3. **Slide editor** — thumbnails on the left; preview, extracted text (editable), speaking script and private notes on the right. *Auto Extract Text*, *Run OCR*, *Use slide text as script*, *Clear Script*, add/delete slides. Autosaves; `⌘S` saves immediately.
-4. **Present** — the teleprompter floats directly **under your camera** (top-centre of the display, below the MacBook notch) so you look into the lens while reading; the slide fills the rest. Controls fade out until you move the mouse. Say your script naturally. (Top bar and bottom bar layouts are in Settings → Teleprompter.)
+4. **Present** — the teleprompter runs as a highlighted **top bar** across the top of the screen, close to your webcam; the slide fills the rest. Controls fade out until you move the mouse. Say your script naturally. (*Under camera* — a compact strip below the lens — and a bottom bar are in Settings → Teleprompter.)
 
 ### Presenting controls
 

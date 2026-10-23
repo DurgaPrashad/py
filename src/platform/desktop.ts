@@ -71,6 +71,7 @@ export const desktop: Platform = {
     openScreenRecordingSettings: () => invoke('open_screen_recording_settings'),
     setPresenterCompact: (compact, width, height) => invoke('set_presenter_compact', { compact, width, height }),
   },
+  openExternal: (url) => invoke('open_external', { url }),
   audience: {
     onSlide: (cb) => sync(listen<{ index: number }>('present://slide', (e) => cb(e.payload.index))),
     ready: () => void emit('present://audience-ready'),

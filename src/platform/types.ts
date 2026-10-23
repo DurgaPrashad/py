@@ -65,6 +65,8 @@ export interface Platform {
     /** Desktop: shrink the presenter into a floating strip under the camera. */
     setPresenterCompact: ((compact: boolean, width: number, height: number) => Promise<void>) | null
   }
+  /** Open an https page in the browser (a new tab on the web, the default browser on desktop). */
+  openExternal(url: string): Promise<void>
   audience: {
     onSlide(cb: (index: number) => void): Unlisten
     ready(): void

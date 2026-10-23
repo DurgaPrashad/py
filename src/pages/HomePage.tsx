@@ -6,8 +6,10 @@ import { Logo } from '../components/Logo'
 import { Modal } from '../components/Modal'
 import { TitleBar } from '../components/TitleBar'
 import { toast } from '../components/Toast'
-import { PRODUCT } from '../config'
+import { PRODUCT, SITE_URL } from '../config'
 import { AccountChip } from '../features/account/AccountChip'
+import { useAccount } from '../features/account/account'
+import { platform } from '../platform'
 import { useFileDrop, useImportFlow } from '../features/presentation/useImport'
 import { useSettings } from '../features/settings/settingsStore'
 import { SlideImage } from '../features/slides/SlideImage'
@@ -106,6 +108,8 @@ export function HomePage() {
               </Button>
             </div>
           </div>
+
+          <DesktopSignInBanner />
 
           {items && items.length > 0 && (
             <div className="relative mt-8">
@@ -344,4 +348,27 @@ function EmptyState({ onPick }: { onPick: () => void }) {
 
 function Dot() {
   return <span className="text-subtle">·</span>
+}
+
+/** Desktop: present and SI need the same account as the website. */
+function DesktopSignInBanner() {
+  const navigate = useNavigate()
+  const ready = useAccount((s) => s.ready)
+  const session = useAccount((s) => s.session)
+  if (platform.kind !== 'desktop' || !ready || session) return null
+  return (
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft px-4 py-3">
+      <p className="text-[13px] leading-relaxed text-fg">
+        Sign in with the email you use on <span className="font-medium">{SITE_URL.replace('https://', '')}</span> — your trial or plan comes with it.
+      </p>
+      <div className="flex gap-2">
+        <Button size="sm" variant="ghost" onClick={() => navigate('/signup')}>
+          Create account
+        </Button>
+        <Button size="sm" variant="primary" onClick={() => navigate('/login')}>
+          Sign in
+        </Button>
+      </div>
+    </div>
+  )
 }

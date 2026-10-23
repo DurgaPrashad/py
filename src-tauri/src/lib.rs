@@ -78,6 +78,7 @@ pub fn run() {
             window_manager::open_audience_window,
             window_manager::close_audience_window,
             window_manager::open_screen_recording_settings,
+            window_manager::open_external,
             window_manager::camera_anchor,
             window_manager::set_presenter_compact,
         ])

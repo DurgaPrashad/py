@@ -61,7 +61,7 @@ export type AiProvider = 'reflex' | 'anthropic' | 'openai' | 'gemini' | 'groq' |
 export type OwnKeyProvider = Exclude<AiProvider, 'reflex'>
 
 export interface Settings {
-  version: 2
+  version: 3
   speech: {
     modelId: string
     deviceId: string | null

@@ -11,8 +11,7 @@ import type { Copilot, QA } from './useCopilot'
 
 /** Opens a site page without leaving the presentation. */
 function openSite(path: string) {
-  if (platform.kind === 'web') window.open(path, '_blank', 'noopener')
-  else window.open(`${SITE_URL}${path}`, '_blank')
+  void platform.openExternal(platform.kind === 'web' ? new URL(path, location.origin).href : `${SITE_URL}${path}`).catch(() => null)
 }
 
 /**
@@ -52,7 +51,7 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
           {provider === 'reflex' ? 'Built-in AI' : model || PROVIDERS[provider].label}
         </span>
       )}
-      {!strip && platform.kind === 'web' && (
+      {!strip && (
         <IconButton label="SI settings — choose the AI and API key" size="sm" onClick={() => openSite('/settings#si')}>
           <Settings2 size={13} />
         </IconButton>
@@ -205,7 +204,7 @@ function Card({ q, strip, onAnswer }: { q: QA; strip: boolean; onAnswer: () => v
             <Button size="sm" variant="primary" onClick={() => openSite('/account?plan=si_monthly')}>
               Upgrade
             </Button>
-          ) : q.code === 'AI_NOT_CONFIGURED' && platform.kind === 'web' ? (
+          ) : q.code === 'AI_NOT_CONFIGURED' ? (
             <Button size="sm" variant="primary" onClick={() => openSite('/settings#si')}>
               Add API key
             </Button>

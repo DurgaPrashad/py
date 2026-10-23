@@ -475,9 +475,13 @@ export function PresentPage() {
   ) : (
     <div ref={stripRef} className={`absolute inset-x-0 z-20 ${tp.position === 'top' ? 'top-0' : 'bottom-0'}`}>
       <div
-        className={`border-white/[0.07] ${tp.position === 'top' ? 'border-b' : 'border-t'}`}
+        className={`relative ${tp.position === 'top' ? 'shadow-[0_10px_40px_rgba(0,0,0,0.55)]' : 'border-t border-white/[0.07]'}`}
         style={{ background: stripBg }}
       >
+        {/* The top bar is the default layout: an accent edge makes it easy to find at a glance. */}
+        {tp.position === 'top' && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-accent/80 to-transparent" />
+        )}
         <div className="mx-auto" style={{ width: `${tp.width}%` }}>
           {prompter}
         </div>

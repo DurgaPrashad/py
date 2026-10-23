@@ -146,10 +146,28 @@ export function AccountPage() {
 
         <Card title={ent.si || ent.standard ? 'Extend or change your plan' : 'Choose a plan'}>
           {platform.kind === 'desktop' ? (
-            <p className="text-[14.5px] text-slate-600">
-              Buy or extend a plan on the website: <span className="font-medium text-slate-900">{SITE_URL}/pricing</span>. Sign in there with this account and
-              the plan applies here automatically.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="max-w-md text-[14.5px] text-slate-600">
+                Plans are bought on the website with this same account ({profile?.email ?? session?.user.email}). Pay there and the plan applies here
+                automatically.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void refresh().catch(() => null)}
+                  className="h-10 rounded-xl border border-slate-300 bg-white px-4 text-[14px] font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void platform.openExternal(`${SITE_URL}/account`).catch(() => null)}
+                  className="h-10 rounded-xl bg-orange-600 px-4 text-[14px] font-medium text-white hover:bg-orange-700"
+                >
+                  Choose a plan in your browser
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {(['standard', 'si'] as const).map((tier) => (

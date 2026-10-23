@@ -1,13 +1,13 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Reflex Presenter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.reflexpresenter.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "npm run build:desktop"
   },
   "app": {
     "windows": [

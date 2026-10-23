@@ -1,12 +1,13 @@
 {
   "name": "reflex-presenter",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "postinstall": "node scripts/copy-vendor-assets.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:desktop": "npm run build && node scripts/strip-desktop-dist.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "app:dev": "tauri dev",

@@ -66,7 +66,7 @@ function Hero() {
   return (
     <header className="relative overflow-hidden">
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.5] [background-image:linear-gradient(to_right,rgb(226_232_240)_1px,transparent_1px),linear-gradient(to_bottom,rgb(226_232_240)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]"
+        className="pointer-events-none absolute inset-0 opacity-[0.8] [background-image:linear-gradient(to_right,rgb(203_213_225)_1px,transparent_1px),linear-gradient(to_bottom,rgb(203_213_225)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_at_top,black_35%,transparent_75%)]"
         aria-hidden
       />
       <div className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-orange-200/40 blur-3xl" aria-hidden />
@@ -180,9 +180,17 @@ function StatBand() {
 
 function Features() {
   return (
-    <section id="product" className="scroll-mt-16">
-      <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-        <SectionHeading eyebrow="Product" title="Everything you need to deliver the pitch">
+    <section id="product" className="relative scroll-mt-16 overflow-hidden bg-[#07070b] text-white">
+      {/* Visible grid and colour glows behind the glass cards. */}
+      <div
+        className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(255,255,255,0.075)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.075)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_100%)]"
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute top-24 -left-24 h-[380px] w-[380px] rounded-full bg-orange-500/30 blur-[110px]" aria-hidden />
+      <div className="pointer-events-none absolute -right-20 bottom-10 h-[420px] w-[420px] rounded-full bg-indigo-500/25 blur-[120px]" aria-hidden />
+      <div className="pointer-events-none absolute top-1/2 left-1/2 h-[260px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-fuchsia-500/10 blur-[100px]" aria-hidden />
+      <div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6">
+        <SectionHeading eyebrow="Product" title="Everything you need to deliver the pitch" dark>
           Import your deck, write or paste exactly what you want to say, and present. Reflex keeps up with you.
         </SectionHeading>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -383,17 +391,20 @@ function DownloadSection() {
               First launch: macOS asks once — open System Settings → Privacy & Security and click <b>Open Anyway</b>.
             </p>
           </div>
-          {release ? (
-            <a
-              href={`${import.meta.env.BASE_URL}downloads/${release.file}`}
-              download
-              className="inline-flex h-12 shrink-0 items-center gap-2 rounded-xl bg-slate-900 px-6 text-[15px] font-medium text-white hover:bg-slate-800"
-            >
-              <Download size={17} /> Download for Mac
-            </a>
-          ) : (
-            <SecondaryLink to="/app">Use the web app</SecondaryLink>
-          )}
+          <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row">
+            {release ? (
+              <a
+                href={`${import.meta.env.BASE_URL}downloads/${release.file}`}
+                download
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-[15px] font-medium text-white hover:bg-slate-800"
+              >
+                <Download size={17} /> Download for Mac
+              </a>
+            ) : (
+              <SecondaryLink to="/app">Use the web app</SecondaryLink>
+            )}
+            <SecondaryLink to="/download">Install guide</SecondaryLink>
+          </div>
         </div>
       </div>
     </section>
@@ -465,22 +476,23 @@ function FinalCta() {
   )
 }
 
-function SectionHeading({ eyebrow, title, children }: { eyebrow: string; title: string; children?: ReactNode }) {
+function SectionHeading({ eyebrow, title, dark, children }: { eyebrow: string; title: string; dark?: boolean; children?: ReactNode }) {
   return (
     <div className="mx-auto mb-12 max-w-3xl text-center">
-      <p className="text-[12.5px] font-semibold tracking-[0.16em] text-orange-600 uppercase">{eyebrow}</p>
-      <h2 className="mt-3 text-[30px] leading-tight font-semibold tracking-[-0.03em] sm:text-[40px]">{title}</h2>
-      {children && <p className="mx-auto mt-4 max-w-2xl text-[16px] leading-relaxed text-slate-600">{children}</p>}
+      <p className={`text-[12.5px] font-semibold tracking-[0.16em] uppercase ${dark ? 'text-orange-400' : 'text-orange-600'}`}>{eyebrow}</p>
+      <h2 className={`mt-3 text-[30px] leading-tight font-semibold tracking-[-0.03em] sm:text-[40px] ${dark ? 'text-white' : ''}`}>{title}</h2>
+      {children && <p className={`mx-auto mt-4 max-w-2xl text-[16px] leading-relaxed ${dark ? 'text-white/70' : 'text-slate-600'}`}>{children}</p>}
     </div>
   )
 }
 
+/** Glass card: translucent dark panel over the section's grid and glows. */
 function FeatureCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-16px_rgba(15,23,42,0.18)]">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600">{icon}</span>
-      <h3 className="mt-4 text-[16.5px] font-semibold tracking-tight">{title}</h3>
-      <p className="mt-2 text-[14.5px] leading-relaxed text-slate-600">{children}</p>
+    <div className="group rounded-2xl border border-white/[0.12] bg-white/[0.06] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_20px_50px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.09]">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.08] text-orange-300">{icon}</span>
+      <h3 className="mt-4 text-[16.5px] font-semibold tracking-tight text-white">{title}</h3>
+      <p className="mt-2 text-[14.5px] leading-relaxed text-white/70">{children}</p>
     </div>
   )
 }

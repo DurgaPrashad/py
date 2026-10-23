@@ -24,7 +24,9 @@ export function useBuyPlan() {
       return
     }
     if (platform.kind === 'desktop') {
-      toast(`Upgrade in your browser at ${SITE_URL}/pricing — your plan applies here once you sign in.`, 'info')
+      // Payments run on the website; the plan follows the account into the app.
+      await platform.openExternal(`${SITE_URL}/account?plan=${plan}`).catch(() => null)
+      toast('Opened checkout in your browser. Your plan appears here as soon as the payment goes through.', 'info')
       return
     }
     setBusy(plan)

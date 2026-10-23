@@ -20,6 +20,8 @@ const PricingPage = lazy(() => import('./pages/site/Pricing').then((m) => ({ def
 const AuthPage = lazy(() => import('./pages/site/AuthPage').then((m) => ({ default: m.AuthPage })))
 const AccountPage = lazy(() => import('./pages/site/AccountPage').then((m) => ({ default: m.AccountPage })))
 const ContactPage = lazy(() => import('./pages/site/ContactPage').then((m) => ({ default: m.ContactPage })))
+const DocsPage = lazy(() => import('./pages/site/DocsPage').then((m) => ({ default: m.DocsPage })))
+const DownloadPage = lazy(() => import('./pages/site/DownloadPage').then((m) => ({ default: m.DownloadPage })))
 const legal = (name: 'PrivacyPage' | 'TermsPage' | 'RefundPage' | 'ShippingPage' | 'CookiesPage') =>
   lazy(() => import('./pages/site/LegalPages').then((m) => ({ default: m[name] })))
 const PrivacyPage = legal('PrivacyPage')
@@ -68,6 +70,8 @@ export function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="/docs" element={<DocsPage />} />
+              <Route path="/download" element={<DownloadPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/refunds" element={<RefundPage />} />

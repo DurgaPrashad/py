@@ -256,6 +256,9 @@ export const web: Platform = {
     openScreenRecordingSettings: null,
     setPresenterCompact: null,
   },
+  openExternal: async (url) => {
+    window.open(url, '_blank', 'noopener')
+  },
   audience: {
     onSlide: (cb) => onChannel('slide', (d) => cb(d.index ?? 0)),
     ready: () => channel?.postMessage({ type: 'ready' }),
