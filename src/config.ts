@@ -1,0 +1,36 @@
+/** Public configuration of the hosted service. Everything here is safe to ship to browsers. */
+
+export const PRODUCT = 'Reflex Presenter'
+export const SITE_URL = 'https://presenter.waspid.com'
+
+// The publishable key only allows what the database's row-level security and
+// function grants allow; secrets live server-side in Supabase Vault.
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jppzpzdsotywshwbnknn.supabase.co'
+export const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_4CATCnaALMxUuwC4HMniVQ_aBp9kBvd'
+
+export type Tier = 'standard' | 'si'
+export type PlanId = 'standard_monthly' | 'standard_yearly' | 'si_monthly' | 'si_yearly'
+
+export interface PlanInfo {
+  id: PlanId
+  tier: Tier
+  interval: 'month' | 'year'
+  /** US dollars; must match private.plans in the database. */
+  price: number
+}
+
+export const PLANS: Record<PlanId, PlanInfo> = {
+  standard_monthly: { id: 'standard_monthly', tier: 'standard', interval: 'month', price: 4 },
+  standard_yearly: { id: 'standard_yearly', tier: 'standard', interval: 'year', price: 24 },
+  si_monthly: { id: 'si_monthly', tier: 'si', interval: 'month', price: 9 },
+  si_yearly: { id: 'si_yearly', tier: 'si', interval: 'year', price: 69 },
+}
+
+export const TIER_NAME: Record<Tier, string> = { standard: 'Standard', si: 'SI' }
+
+/** Must match private.settings in the database. */
+export const TRIAL_DAYS = 7
+export const FREE_AI_ANSWERS = 5
+export const AI_DAILY_LIMIT = 300
+
+export const planFor = (tier: Tier, interval: 'month' | 'year'): PlanId => `${tier}_${interval === 'month' ? 'monthly' : 'yearly'}`

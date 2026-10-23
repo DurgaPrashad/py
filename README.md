@@ -6,10 +6,34 @@ A local-first, AI-powered presentation teleprompter. Import a PDF or PowerPoint 
 MICROPHONE → LOCAL SPEECH RECOGNITION → PARTIAL TRANSCRIPT → WORD ALIGNMENT → CURRENT WORD → 8-WORD WINDOW → LIVE HIGHLIGHT
 ```
 
-No account, no API key, no cloud speech. It runs two ways from the same code:
+Speech recognition is local — no cloud speech. It runs two ways from the same code:
 
 - **Web app** — host the static build anywhere; Whisper runs *inside the browser* on WebGPU, and presentations live in the browser's storage.
 - **Desktop app** (Tauri) — whisper.cpp with Metal, files on disk, second-display and floating-window presenting.
+
+## Accounts, plans and the SI copilot
+
+The hosted site (https://presenter.waspid.com) has accounts and paid plans; everything server-side runs inside Supabase Postgres, so the site itself stays static.
+
+| Plan | Price | What it unlocks |
+| --- | --- | --- |
+| Free trial | 7 days | Standard + 5 SI answers |
+| **Standard** (non-SI) | $4 / month · $24 / year | Presenting with the teleprompter, unlimited usage |
+| **SI** (Smart Intelligence) | $9 / month · $69 / year | Standard + the AI copilot (up to 300 answers a day) |
+
+Plans are prepaid (Razorpay Orders, USD) and never renew automatically.
+
+- **Schema & server logic:** `supabase/migrations/` — profiles (one per account), payments, contact messages, and security-definer functions: `create_account`, `create_checkout` / `confirm_payment` / `sync_payments` (Razorpay order → checkout → HMAC signature check → capture → plan extended), `ask_copilot` (calls the Claude API with the deck as context). Apply with `psql -f` or the Supabase SQL editor.
+- **Secrets** live in Supabase Vault and never in this repo or the browser:
+  ```sql
+  select vault.create_secret('<razorpay key id>', 'razorpay_key_id');
+  select vault.create_secret('<razorpay key secret>', 'razorpay_key_secret');
+  select vault.create_secret('<anthropic api key>', 'anthropic_api_key');
+  ```
+- **Settings** (`private.settings`): AI model and effort, free SI answers, trial length, daily AI limit, sign-up rate limit. Prices: `private.plans` (keep `src/config.ts` in step).
+- **Public client config:** `src/config.ts` (Supabase URL + publishable key; override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`).
+- **SI copilot:** in presentation mode press `Q` (or the ✦ button). *Listen to the call* shares the meeting tab's audio (Chrome/Edge, “Also share tab audio”); it is transcribed on-device by a second Whisper worker, questions are detected (`src/features/copilot/questions.ts`) and only the question plus deck text is sent for an answer. Typed questions work everywhere. The editor's *Q&A prep notes* and *Draft with AI* use the same function.
+- **Website pages:** `/`, `/pricing`, `/privacy`, `/terms`, `/refunds`, `/shipping`, `/cookies`, `/contact`, `/login`, `/signup`, `/account`. The web app is at `/app` and needs an account; presenting needs the trial or a plan.
 
 ## Web app
 
@@ -19,11 +43,11 @@ npm run dev          # http://localhost:1420
 npm run build        # static site in dist/
 ```
 
-**Hosting:** `dist/` is a static site with relative paths, so it works at a domain root or in a sub-folder.
+**Hosting:** `dist/` is a static single-page site with real paths (`/pricing`, `/app`, `/present/…`), so the host must serve `index.html` for unknown paths.
 
-- **Vercel** — import the repo; it detects Vite (build `npm run build`, output `dist`).
-- **Netlify** — import the repo; `netlify.toml` is included.
-- **GitHub Pages** — in the repo settings set *Pages → Source* to *GitHub Actions*, then run the **Deploy to GitHub Pages** workflow (Actions tab). The site appears at `https://<user>.github.io/<repo>/`.
+- **Vercel** — import the repo; it detects Vite (build `npm run build`, output `dist`). `vercel.json` adds the rewrite. This is how presenter.waspid.com is hosted: pushing to `main` deploys it.
+- **Netlify** — import the repo; `netlify.toml` is included (with the rewrite).
+- **GitHub Pages** — in the repo settings set *Pages → Source* to *GitHub Actions*, then run the **Deploy to GitHub Pages** workflow (Actions tab). The site appears at `https://<user>.github.io/<repo>/` (built with `VITE_BASE`); Pages has no rewrites, so deep links only work when opened from the site.
 - Hosts with a 25 MB per-file limit (e.g. Cloudflare Pages) won't serve the 27 MB speech runtime (`vendor/ort/*.wasm`).
 
 **In the browser:** use Chrome or Edge (WebGPU and the floating teleprompter window). The first time you present, Reflex downloads the Whisper *Tiny English* model (~120 MB) from Hugging Face; the browser caches it and recognition then runs on the device (~0.2–0.3 s per update on a recent Mac). Slides, scripts and settings are kept in this browser (IndexedDB / localStorage) — nothing is uploaded. Legacy `.ppt` files need the desktop app (save as `.pptx` or PDF instead).
@@ -50,7 +74,7 @@ npm run app:build    # → src-tauri/target/release/bundle/
 npm run package:mac  # build + ad-hoc sign + zip into public/downloads (served by the website's Download button)
 ```
 
-The website's front page (`/#/`) explains Reflex and offers this zip; the web app itself is at `/#/app`. The Mac app is ad-hoc signed but not notarized, so on first launch macOS asks you to allow it under *System Settings → Privacy & Security → Open Anyway*.
+The website's front page (`/`) explains Reflex and offers this zip; the web app itself is at `/app`. The Mac app is ad-hoc signed but not notarized, so on first launch macOS asks you to allow it under *System Settings → Privacy & Security → Open Anyway*.
 
 ## Using it
 
@@ -152,7 +176,7 @@ Plain files in the app data folder: `projects/<id>/project.json` (presentation, 
 
 ### Network use
 
-Only the optional, user-initiated model download from Hugging Face. Fonts, OCR data, PDF resources and recognition are all local.
+Speech, slides and scripts never leave the device. The network is used for the one-time model download from Hugging Face, for sign-in and plan checks (Supabase), for payments (Razorpay Checkout), and — only when you use SI — to send a question and your deck text for an answer. Fonts, OCR data, PDF resources and recognition are all local.
 
 ## Testing
 

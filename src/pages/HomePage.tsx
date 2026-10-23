@@ -6,6 +6,8 @@ import { Logo } from '../components/Logo'
 import { Modal } from '../components/Modal'
 import { TitleBar } from '../components/TitleBar'
 import { toast } from '../components/Toast'
+import { PRODUCT } from '../config'
+import { AccountChip } from '../features/account/AccountChip'
 import { useFileDrop, useImportFlow } from '../features/presentation/useImport'
 import { useSettings } from '../features/settings/settingsStore'
 import { SlideImage } from '../features/slides/SlideImage'
@@ -43,6 +45,10 @@ export function HomePage() {
     refresh()
   }, [refresh])
 
+  useEffect(() => {
+    document.title = `Presentations · ${PRODUCT}`
+  }, [])
+
   const dragging = useFileDrop((paths) => start(paths[0]))
 
   const filtered = useMemo(() => {
@@ -72,9 +78,12 @@ export function HomePage() {
           </div>
         }
         right={
-          <IconButton label="Settings" onClick={() => navigate('/settings')}>
-            <Settings2 size={17} />
-          </IconButton>
+          <>
+            <AccountChip />
+            <IconButton label="Settings" onClick={() => navigate('/settings')}>
+              <Settings2 size={17} />
+            </IconButton>
+          </>
         }
       />
 
@@ -83,7 +92,7 @@ export function HomePage() {
           <div className="flex items-end justify-between gap-6">
             <div>
               <h1 className="text-[26px] font-semibold tracking-[-0.02em]">Presentations</h1>
-              <p className="mt-1 text-[13.5px] text-muted">Your slides and speaking scripts stay on this computer.</p>
+              <p className="mt-1 text-[13.5px] text-muted">Your slides and speaking scripts stay on this device.</p>
             </div>
             <div className="flex items-center gap-2">
               <Button icon={<Plus size={15} />} onClick={newPresentation}>

@@ -209,7 +209,7 @@ export const web: Platform = {
       }
     },
     async openSlides(projectId) {
-      const url = `${location.pathname}${location.search}#/audience/${projectId}`
+      const url = `${import.meta.env.BASE_URL}audience/${projectId}`
       if (slidesWindow && !slidesWindow.closed) {
         slidesWindow.focus()
         return false

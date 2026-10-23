@@ -4,9 +4,10 @@ import { defineConfig } from 'vite'
 
 // Tauri expects a fixed dev-server port and serves the built files itself.
 export default defineConfig({
-  // Relative paths: the web build works at any URL (e.g. GitHub Pages
-  // sub-folders) and inside the desktop app.
-  base: './',
+  // The website uses real paths (/pricing, /present/…), so assets load from
+  // the site root. The desktop app loads relative to its bundle. VITE_BASE
+  // overrides it for hosting in a sub-folder (e.g. /presenter/).
+  base: process.env.VITE_BASE ?? (process.env.TAURI_ENV_PLATFORM ? './' : '/'),
   plugins: [react(), tailwindcss()],
   clearScreen: false,
   server: {

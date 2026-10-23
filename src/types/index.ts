@@ -46,6 +46,8 @@ export interface Presentation {
   createdAt: number
   updatedAt: number
   slides: Slide[]
+  /** Facts the SI copilot may use when answering questions (traction, team, pricing…). */
+  qaNotes?: string
 }
 
 export type VoiceCommand = 'next' | 'previous' | 'repeat' | 'pause' | 'resume'

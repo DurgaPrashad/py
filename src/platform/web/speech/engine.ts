@@ -12,7 +12,7 @@ type Listener<T> = (value: T) => void
 const unlisten = (set: Set<unknown>, fn: unknown) => () => void set.delete(fn)
 
 // AudioWorklet: downmix, low-pass and resample to 16 kHz; post 20 ms chunks.
-const WORKLET = `
+export const WORKLET = `
 class ReflexCapture extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -71,7 +71,7 @@ class ReflexCapture extends AudioWorkletProcessor {
 registerProcessor('reflex-capture', ReflexCapture);
 `
 
-const levelOf = (rms: number) => Math.max(0, Math.min(1, (20 * Math.log10(Math.max(rms, 1e-6)) + 60) / 60))
+export const levelOf = (rms: number) => Math.max(0, Math.min(1, (20 * Math.log10(Math.max(rms, 1e-6)) + 60) / 60))
 
 /** Dev only: a WAV file (16-bit, 16 kHz) standing in for the microphone. */
 function devAudioUrl(): string | null {
@@ -88,7 +88,7 @@ const CACHE = 'transformers-cache'
 const hasWebGpu = () => 'gpu' in navigator
 
 /** Models whose files (for this browser's backend) are already cached. */
-async function cachedRepos(): Promise<Set<string>> {
+export async function cachedRepos(): Promise<Set<string>> {
   const out = new Set<string>()
   try {
     const cache = await caches.open(CACHE)

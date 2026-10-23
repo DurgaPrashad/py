@@ -10,6 +10,7 @@ import {
   Plus,
   Save,
   ScanText,
+  Sparkles,
   Trash2,
   Wand2,
 } from 'lucide-react'
@@ -20,6 +21,8 @@ import { Kbd } from '../components/controls'
 import { Modal } from '../components/Modal'
 import { TitleBar } from '../components/TitleBar'
 import { toast } from '../components/Toast'
+import { useAccount } from '../features/account/account'
+import { askCopilot, deckContext } from '../features/copilot/api'
 import { useSettings } from '../features/settings/settingsStore'
 import { ConfidenceBadge } from '../features/slides/ConfidenceBadge'
 import { SlideImage } from '../features/slides/SlideImage'
@@ -44,6 +47,8 @@ export function EditorPage() {
   const [index, setIndex] = useState(() => Math.max(0, Number(search.get('slide') ?? 1) - 1))
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [extracting, setExtracting] = useState<null | 'auto' | 'ocr'>(null)
+  const [drafting, setDrafting] = useState(false)
+  const signedIn = useAccount((s) => !!s.session)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const latest = useRef<Presentation | null>(null)
   const dirty = useRef(false)
@@ -146,6 +151,25 @@ export function EditorPage() {
       toast(errorMessage(e), 'error')
     } finally {
       setExtracting(null)
+    }
+  }
+
+  const draftWithAi = async () => {
+    const source = [slide.extractedText, slide.notes].filter((t) => t.trim()).join('\n\n')
+    if (!source) {
+      toast('Add slide text or notes first — the AI writes the script from them.', 'info')
+      return
+    }
+    setDrafting(true)
+    try {
+      const res = await askCopilot(source, deckContext(p, index), 'script')
+      updateSlide(index, { script: res.text })
+      toast(res.si ? 'Script drafted — edit it to sound like you.' : `Script drafted. ${res.free_left} free SI answers left.`, 'success')
+      if (!res.si) void useAccount.getState().refresh().catch(() => null)
+    } catch (e) {
+      toast(errorMessage(e), 'error')
+    } finally {
+      setDrafting(false)
     }
   }
 
@@ -297,6 +321,16 @@ export function EditorPage() {
               >
                 Use slide text as script
               </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={drafting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                disabled={drafting || !signedIn}
+                title={signedIn ? 'Write a speaking script for this slide with AI (SI)' : 'Sign in to draft scripts with AI'}
+                onClick={draftWithAi}
+              >
+                Draft with AI
+              </Button>
               <Button size="sm" variant="ghost" icon={<Eraser size={13} />} disabled={!slide.script} onClick={() => updateSlide(index, { script: '' })}>
                 Clear Script
               </Button>
@@ -354,6 +388,22 @@ export function EditorPage() {
                 onChange={(e) => updateSlide(index, { notes: e.target.value })}
                 placeholder="Private notes (not used by the teleprompter)"
                 rows={3}
+                className="w-full resize-y rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[13px] leading-relaxed outline-none placeholder:text-subtle focus:border-accent/50"
+              />
+            </section>
+
+            <section>
+              <div className="mb-1.5 flex items-center gap-2">
+                <h3 className="text-[11.5px] font-medium tracking-wide text-subtle uppercase">Q&A prep notes</h3>
+                <span className="flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold text-accent">
+                  <Sparkles size={10} /> SI copilot
+                </span>
+              </div>
+              <textarea
+                value={p.qaNotes ?? ''}
+                onChange={(e) => commit({ ...p, qaNotes: e.target.value })}
+                placeholder="For the whole presentation: facts the SI copilot can use when someone asks a question — traction, revenue, team, pricing, competitors, your raise and use of funds, common objections and how you answer them."
+                rows={5}
                 className="w-full resize-y rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[13px] leading-relaxed outline-none placeholder:text-subtle focus:border-accent/50"
               />
             </section>

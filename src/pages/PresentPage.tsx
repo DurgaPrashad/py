@@ -1,11 +1,13 @@
-import { ChevronLeft, ChevronRight, Maximize, MicOff, MonitorUp, Pause, Play, RotateCcw, X } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Maximize, Monitor, MonitorUp, MicOff, Pause, Play, RotateCcw, Sparkles, X } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, IconButton } from '../components/Button'
-import { Kbd } from '../components/controls'
+import { Kbd, Toggle } from '../components/controls'
 import { FitBox } from '../components/FitBox'
 import { toast } from '../components/Toast'
+import { CopilotPanel } from '../features/copilot/CopilotPanel'
+import { useCopilot } from '../features/copilot/useCopilot'
 import { MicStatus } from '../features/speech/MicStatus'
 import { ModelList } from '../features/speech/ModelList'
 import { useSpeechEngine } from '../features/speech/useSpeechEngine'
@@ -19,9 +21,14 @@ import { speech } from '../services/speech/speechService'
 import { loadPresentation } from '../services/storage/projects'
 import { platform } from '../platform'
 import { errorMessage } from '../services/tauri'
-import type { Presentation, ScriptWord, Settings, VoiceCommand } from '../types'
+import type { MonitorInfo, Presentation, ScriptWord, Settings, Slide, VoiceCommand } from '../types'
 import { formatClock } from '../utils/format'
 import { HOME } from '../utils/routes'
+
+/** Width of the SI copilot panel beside the slide. */
+const SIDE_PANEL_W = 360
+/** Extra height of the browser's floating window when it also shows the copilot. */
+const PIP_COPILOT_H = 220
 
 const COMMAND_LABEL: Record<VoiceCommand, string> = {
   next: 'Next slide',
@@ -63,6 +70,8 @@ export function PresentPage() {
   const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const engine = useSpeechEngine(!!p && voiceEnabled, settings.speech)
+  const copilot = useCopilot(p, slideIndex, settings.speech.modelId)
+  const [copilotOpen, setCopilotOpen] = useState(false)
 
   useEffect(() => {
     loadPresentation(id)
@@ -206,6 +215,7 @@ export function PresentPage() {
       else if (code === 'ArrowDown') placeWord(Math.min(words.length - 1, (session.current?.aligner.wordIndex ?? 0) + 1))
       else if (code === 'ArrowUp') placeWord((session.current?.aligner.wordIndex ?? 0) - 1)
       else if (code === 'KeyT') setShowTranscript((v) => !v)
+      else if (code === 'KeyQ') setCopilotOpen((v) => !v)
       else return
       e.preventDefault()
     }
@@ -241,20 +251,21 @@ export function PresentPage() {
   const [slidesWindow, setSlidesWindow] = useState<null | 'share' | 'display'>(null)
   const [shareStage, setShareStage] = useState<'setup' | 'live'>('setup')
   const [pipWindow, setPipWindow] = useState<Window | null>(null)
+  // Browser call mode: show the SI copilot under the floating teleprompter.
+  const [copilotInPip, setCopilotInPip] = useState(true)
   const engineOk = engine.status !== 'missing-model' && engine.status !== 'error'
   const shareLive = mode === 'share' && shareStage === 'live'
   const compact = shareLive && !web && engineOk
   const compactH = Math.round(tp.fontSize * 1.94 + 40 + (showTranscript ? 22 : 0))
 
   const openSlidesWindow = useCallback(
-    async (share: boolean) => {
+    async (share: boolean, monitorIndex: number | null = settings.display.audienceMonitor) => {
       if (!p) return false
       try {
-        const external = await platform.windows.openSlides(p.id, { monitorIndex: settings.display.audienceMonitor, share })
+        const external = await platform.windows.openSlides(p.id, { monitorIndex, share })
         setSlidesWindow(share ? 'share' : 'display')
         platform.windows.sendSlide(actions.current.slideIndex)
-        if (!share && !external) toast('Only one display found — the slides window opened here. Drag it to your projector.', 'info')
-        return true
+        return external
       } catch (e) {
         toast(errorMessage(e), 'error')
         return false
@@ -270,9 +281,8 @@ export function PresentPage() {
 
   useEffect(() => {
     if (!p) return
-    const fullscreen = mode === 'fullscreen' || mode === 'dual'
+    const fullscreen = mode === 'fullscreen'
     if (fullscreen) void platform.windows.setFullscreen(true)
-    if (mode === 'dual') void openSlidesWindow(false)
     return () => {
       if (fullscreen) void platform.windows.setFullscreen(false)
       void platform.windows.closeSlides()
@@ -293,10 +303,11 @@ export function PresentPage() {
         try {
           // The PiP window's own title bar takes ~90 px; ask for enough room
           // for the strip, then correct to the exact size once it exists.
-          const w = await dpip.requestWindow({ width: Math.round(Math.min(screen.width * (tp.width / 100), 1400)), height: compactH + 96 })
+          const pipH = compactH + (copilotInPip ? PIP_COPILOT_H : 0)
+          const w = await dpip.requestWindow({ width: Math.round(Math.min(screen.width * (tp.width / 100), 1400)), height: pipH + 96 })
           try {
             const chromeH = w.outerHeight - w.innerHeight
-            if (Math.abs(w.innerHeight - compactH) > 4) w.resizeTo(w.outerWidth, compactH + chromeH)
+            if (Math.abs(w.innerHeight - pipH) > 4) w.resizeTo(w.outerWidth, pipH + chromeH)
           } catch {
             // resizing needs a user gesture in some browsers; the extra height is fine
           }
@@ -320,13 +331,42 @@ export function PresentPage() {
       return
     }
     if (await openSlidesWindow(true)) setShareStage('live')
-  }, [web, tp.width, compactH, openSlidesWindow])
+  }, [web, tp.width, compactH, copilotInPip, openSlidesWindow])
 
   useEffect(() => {
     pipRef.current = pipWindow
     setPipOpen(!!pipWindow)
     return () => pipWindow?.close()
   }, [pipWindow])
+
+  // Second-display ("Presenter Console") flow: pick the audience display,
+  // put the slides there fullscreen, keep the console on this screen.
+  const [displayStage, setDisplayStage] = useState<'setup' | 'live'>('setup')
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([])
+  useEffect(() => {
+    if (mode !== 'dual') return
+    platform.windows.listMonitors().then(setMonitors).catch(() => setMonitors([]))
+  }, [mode])
+
+  const startDualDisplay = useCallback(
+    async (monitorIndex: number | null) => {
+      await platform.windows.setFullscreen(true)
+      await openSlidesWindow(false, monitorIndex)
+      setDisplayStage('live')
+    },
+    [openSlidesWindow],
+  )
+  useEffect(() => {
+    if (mode !== 'dual' || displayStage !== 'live') return
+    return () => {
+      void platform.windows.setFullscreen(false)
+      void platform.windows.closeSlides()
+    }
+  }, [mode, displayStage])
+  // If the audience window is closed (user or OS), drop back to setup.
+  useEffect(() => {
+    if (mode === 'dual' && displayStage === 'live' && slidesWindow === null) setDisplayStage('setup')
+  }, [mode, displayStage, slidesWindow])
 
   // Desktop: shrink this window into a floating strip under the camera while
   // the slides window fills the screen.
@@ -463,13 +503,62 @@ export function PresentPage() {
       onNext={() => goTo(slideIndex + 1)}
       onTogglePause={() => setPausedBoth(!paused)}
       onExit={() => navigate(-1)}
+      extra={pipWindow && copilotInPip ? <CopilotPanel copilot={copilot} variant="strip" /> : undefined}
+      promptH={compactH}
     />
   )
 
   if (compact) return floating
 
+  if (mode === 'dual' && engine.status !== 'missing-model' && displayStage === 'setup') {
+    return (
+      <DisplaySetup
+        web={web}
+        monitors={monitors}
+        onStart={startDualDisplay}
+        onUseWindowShare={() => {
+          setDisplayStage('setup')
+          navigate(`/present/${p.id}?slide=${slideIndex + 1}&mode=share`, { replace: true })
+        }}
+        onCancel={() => navigate(-1)}
+      />
+    )
+  }
+
+  if (mode === 'dual' && displayStage === 'live') {
+    return (
+      <PresenterConsole
+        prompter={prompter}
+        slide={slide}
+        nextSlide={nextSlide}
+        notes={slide.notes}
+        aspectRatio={p.aspectRatio}
+        slideIndex={slideIndex}
+        total={total}
+        isLast={isLast}
+        paused={paused}
+        statusChip={stripChip}
+        startedAt={startedAt}
+        engineStatus={engine.status}
+        engineMessage={engine.message}
+        showLevel={settings.display.showLevelMeter}
+        device={engine.device}
+        onRetry={engine.retry}
+        onPrev={() => goTo(slideIndex - 1)}
+        onNext={() => goTo(slideIndex + 1)}
+        onTogglePause={() => setPausedBoth(!paused)}
+        onRestart={restart}
+        onExit={() => navigate(-1)}
+        copilot={copilotOpen ? <CopilotPanel copilot={copilot} variant="side" onClose={() => setCopilotOpen(false)} /> : null}
+        copilotOpen={copilotOpen}
+        onToggleCopilot={() => setCopilotOpen((v) => !v)}
+      />
+    )
+  }
+
   // In browser share mode the tab itself is what the audience sees: deck only.
   const deckOnly = web && shareLive && !!pipWindow
+  const sidePanel = copilotOpen && !deckOnly
 
   return (
     <div className={`dark relative h-full overflow-hidden bg-black text-fg ${controlsHidden ? 'cursor-none' : ''}`}>
@@ -478,7 +567,7 @@ export function PresentPage() {
 
       <div
         className="absolute inset-0 flex items-center justify-center gap-6 px-6"
-        style={deckOnly ? { padding: 0 } : { paddingTop: padTop, paddingBottom: padBottom }}
+        style={deckOnly ? { padding: 0 } : { paddingTop: padTop, paddingBottom: padBottom, paddingRight: sidePanel ? SIDE_PANEL_W + 40 : undefined }}
         data-tauri-drag-region
       >
         <div className={`flex h-full min-w-0 items-center justify-center ${dual && !deckOnly ? 'flex-[3]' : 'w-full'}`}>
@@ -508,8 +597,24 @@ export function PresentPage() {
         )}
       </div>
 
+      {sidePanel && (
+        <aside
+          className="absolute right-4 z-30 overflow-hidden rounded-2xl border border-line-strong bg-elevated/95 shadow-2xl shadow-black/60 backdrop-blur-xl animate-rise"
+          style={{ top: Math.max(16, padTop - 14), bottom: padBottom - 8, width: SIDE_PANEL_W }}
+        >
+          <CopilotPanel copilot={copilot} variant="side" onClose={() => setCopilotOpen(false)} />
+        </aside>
+      )}
+
       {mode === 'share' && !shareLive && engine.status !== 'missing-model' && (
-        <ShareSetup web={web} pipSupported={web && 'documentPictureInPicture' in window} onStart={startShare} onCancel={() => navigate(-1)} />
+        <ShareSetup
+          web={web}
+          pipSupported={web && 'documentPictureInPicture' in window}
+          copilot={copilotInPip}
+          onCopilotChange={setCopilotInPip}
+          onStart={startShare}
+          onCancel={() => navigate(-1)}
+        />
       )}
       {flash && !deckOnly && (
         <div className="pointer-events-none absolute bottom-16 left-1/2 z-30 -translate-x-1/2 rounded-full bg-elevated/90 px-4 py-1.5 text-[13px] font-medium shadow-xl backdrop-blur animate-rise">
@@ -568,6 +673,9 @@ export function PresentPage() {
           <IconButton label="Restart slide (R)" onClick={restart}>
             <RotateCcw size={15} />
           </IconButton>
+          <IconButton label="SI copilot — answers to questions on the call (Q)" active={copilotOpen} onClick={() => setCopilotOpen((v) => !v)}>
+            <Sparkles size={15} />
+          </IconButton>
           <IconButton
             label={slidesWindow ? 'Close slides window' : 'Open a slides-only window (to share or put on a projector)'}
             active={!!slidesWindow}
@@ -600,6 +708,8 @@ function FloatingStrip({
   onNext,
   onTogglePause,
   onExit,
+  extra,
+  promptH,
 }: {
   prompter: React.ReactNode
   chip: string | null
@@ -609,6 +719,9 @@ function FloatingStrip({
   onNext: () => void
   onTogglePause: () => void
   onExit: () => void
+  /** Shown under the teleprompter (the SI copilot in the browser's floating window). */
+  extra?: ReactNode
+  promptH: number
 }) {
   return (
     <div className="dark group relative flex h-screen w-full flex-col overflow-hidden bg-[#0b0b0e] text-fg" data-tauri-drag-region>
@@ -631,15 +744,30 @@ function FloatingStrip({
           </IconButton>
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 items-center px-4 pb-2">
+      <div className={`flex min-h-0 items-center px-4 pb-2 ${extra ? 'shrink-0' : 'flex-1'}`} style={extra ? { height: promptH - 24 } : undefined}>
         <div className="min-w-0 flex-1">{prompter}</div>
       </div>
+      {extra && <div className="min-h-0 flex-1 border-t border-white/[0.07]">{extra}</div>}
     </div>
   )
 }
 
 /** Explains how to share only the deck, then starts on a click. */
-function ShareSetup({ web, pipSupported, onStart, onCancel }: { web: boolean; pipSupported: boolean; onStart: () => void; onCancel: () => void }) {
+function ShareSetup({
+  web,
+  pipSupported,
+  copilot,
+  onCopilotChange,
+  onStart,
+  onCancel,
+}: {
+  web: boolean
+  pipSupported: boolean
+  copilot: boolean
+  onCopilotChange: (on: boolean) => void
+  onStart: () => void
+  onCancel: () => void
+}) {
   const steps = web
     ? pipSupported
       ? [
@@ -675,6 +803,15 @@ function ShareSetup({ web, pipSupported, onStart, onCancel }: { web: boolean; pi
         <p className="mt-4 text-[12px] leading-relaxed text-subtle">
           Sharing your entire screen shows every window on it, including the teleprompter — share the {web && pipSupported ? 'tab' : 'slides window'} instead.
         </p>
+        {web && pipSupported && (
+          <label className="mt-4 flex items-start gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">
+            <Toggle checked={copilot} onChange={onCopilotChange} label="SI copilot in the floating window" />
+            <span className="text-[12.5px] leading-relaxed text-muted">
+              <span className="font-medium text-fg">SI copilot in the floating window</span> — listens to the call and suggests answers to questions, right
+              under your script.
+            </span>
+          </label>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <Button onClick={onCancel}>Cancel</Button>
           <Button variant="primary" data-autofocus onClick={onStart}>
@@ -682,6 +819,250 @@ function ShareSetup({ web, pipSupported, onStart, onCancel }: { web: boolean; pi
           </Button>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Pre-flight for second-display presenting: choose the audience display. */
+function DisplaySetup({
+  web,
+  monitors,
+  onStart,
+  onUseWindowShare,
+  onCancel,
+}: {
+  web: boolean
+  monitors: MonitorInfo[]
+  onStart: (monitorIndex: number | null) => void
+  onUseWindowShare: () => void
+  onCancel: () => void
+}) {
+  const others = monitors.filter((m) => !m.isCurrent)
+  const [pick, setPick] = useState<number | null>(others[0]?.index ?? null)
+  const hasSecond = others.length > 0
+  const dims = (m: MonitorInfo) => `${Math.round(m.width / m.scaleFactor)}×${Math.round(m.height / m.scaleFactor)}`
+
+  return (
+    <div className="dark flex h-full items-center justify-center overflow-y-auto bg-[#08080a] p-8 text-fg">
+      <div className="w-[620px] max-w-full rounded-2xl border border-line-strong bg-elevated p-6 shadow-2xl animate-rise">
+        <div className="flex items-center gap-2.5">
+          <Monitor size={18} className="text-accent" />
+          <h2 className="text-[17px] font-semibold tracking-tight">Present with a second display</h2>
+        </div>
+        <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
+          Your slides go full-screen on the audience display; this screen keeps the teleprompter, notes and controls — only for you. Share the
+          audience display (or its window) and the script never appears to anyone else.
+        </p>
+
+        {hasSecond ? (
+          <>
+            <div className="mt-5 text-[11.5px] font-medium tracking-wide text-subtle uppercase">Audience display</div>
+            <div className="mt-2 flex flex-col gap-2">
+              {others.map((m) => (
+                <button
+                  key={m.index}
+                  type="button"
+                  onClick={() => setPick(m.index)}
+                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                    pick === m.index ? 'border-accent/60 bg-accent-soft' : 'border-line bg-surface hover:bg-hover'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <Monitor size={16} className={pick === m.index ? 'text-accent' : 'text-muted'} />
+                    <span>
+                      <span className="block text-[13.5px] font-medium">{m.name || `Display ${m.index + 1}`}</span>
+                      <span className="block text-[12px] text-subtle tabular">{dims(m)}</span>
+                    </span>
+                  </span>
+                  <span className={`h-4 w-4 rounded-full border ${pick === m.index ? 'border-accent bg-accent' : 'border-line-strong'}`} />
+                </button>
+              ))}
+            </div>
+            <div className="mt-6 flex items-center justify-between">
+              <button type="button" onClick={onUseWindowShare} className="text-[12.5px] text-muted hover:text-fg">
+                Share a window instead
+              </button>
+              <div className="flex gap-2">
+                <Button onClick={onCancel}>Cancel</Button>
+                <Button variant="primary" data-autofocus onClick={() => onStart(pick)}>
+                  Start on {others.find((m) => m.index === pick)?.name || 'display 2'}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mt-5 rounded-xl border border-line bg-surface p-4 text-[13px] leading-relaxed text-muted">
+              <p className="font-medium text-fg">Only one display detected.</p>
+              <p className="mt-1.5">To keep the script fully off the audience's view, add a second screen, then come back:</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>Connect an external monitor or projector, or</li>
+                <li>
+                  Use an iPad as a display with <span className="text-fg">Sidecar</span> — Control Center → Screen Mirroring → your iPad → <span className="text-fg">Use as Separate Display</span>.
+                </li>
+              </ul>
+              <p className="mt-2">
+                Prefer a single screen? <button type="button" onClick={onUseWindowShare} className="font-medium text-accent hover:underline">Share just the slides window</button> instead — the audience still sees only the deck.
+              </p>
+            </div>
+            <div className="mt-5 flex items-center justify-between">
+              <button type="button" onClick={() => onStart(null)} className="text-[12.5px] text-muted hover:text-fg">
+                {web ? 'Open slides in a separate window anyway' : 'Open the slides window here anyway'}
+              </button>
+              <div className="flex gap-2">
+                <Button onClick={onCancel}>Cancel</Button>
+                <Button variant="primary" data-autofocus onClick={onUseWindowShare}>
+                  Share a window instead
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** The presenter's private screen in second-display mode. */
+function PresenterConsole({
+  prompter,
+  slide,
+  nextSlide,
+  notes,
+  aspectRatio,
+  slideIndex,
+  total,
+  isLast,
+  paused,
+  statusChip,
+  startedAt,
+  engineStatus,
+  engineMessage,
+  showLevel,
+  device,
+  onRetry,
+  onPrev,
+  onNext,
+  onTogglePause,
+  onRestart,
+  onExit,
+  copilot,
+  copilotOpen,
+  onToggleCopilot,
+}: {
+  prompter: React.ReactNode
+  slide: Slide
+  nextSlide: Slide | undefined
+  notes: string
+  aspectRatio: number
+  slideIndex: number
+  total: number
+  isLast: boolean
+  paused: boolean
+  statusChip: string | null
+  startedAt: number
+  engineStatus: string
+  engineMessage: string
+  showLevel: boolean
+  device: string
+  onRetry: () => void
+  onPrev: () => void
+  onNext: () => void
+  onTogglePause: () => void
+  onRestart: () => void
+  onExit: () => void
+  copilot: ReactNode
+  copilotOpen: boolean
+  onToggleCopilot: () => void
+}) {
+  return (
+    <div className="dark flex h-full flex-col bg-[#08080a] text-fg">
+      {/* Teleprompter — the reason this screen exists. */}
+      <div className="relative shrink-0 border-b border-white/[0.07] bg-[#0b0b0e] px-6 py-3">
+        <div className="mx-auto max-w-[1100px]">{prompter}</div>
+        {statusChip && (
+          <span className="pointer-events-none absolute top-2 right-4 rounded-full border border-accent/30 bg-[#2a170b] px-2.5 py-0.5 text-[11px] font-medium text-accent">
+            {statusChip}
+          </span>
+        )}
+      </div>
+
+      {/* Current slide, next slide, notes. */}
+      <div className="flex min-h-0 flex-1 gap-5 p-6">
+        <div className="flex min-w-0 flex-[3] flex-col">
+          <div className="mb-2 text-[11.5px] font-medium tracking-wide text-subtle uppercase">Current slide</div>
+          <div className="min-h-0 flex-1">
+            <FitBox ratio={aspectRatio}>
+              <div className="h-full w-full overflow-hidden rounded-lg shadow-2xl shadow-black ring-1 ring-line">
+                <SlideImage slide={slide} aspectRatio={aspectRatio} className="h-full w-full" />
+              </div>
+            </FitBox>
+          </div>
+        </div>
+        <div className="flex min-w-[240px] flex-[2] flex-col gap-4 overflow-hidden">
+          <div>
+            <div className="mb-2 text-[11.5px] font-medium tracking-wide text-subtle uppercase">Next</div>
+            {nextSlide ? (
+              <div className="overflow-hidden rounded-md ring-1 ring-line">
+                <SlideImage slide={nextSlide} aspectRatio={aspectRatio} thumb />
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed border-line py-8 text-center text-[12px] text-subtle">End of presentation</div>
+            )}
+          </div>
+          <div className={`flex min-h-0 flex-col ${copilot ? 'max-h-[30%] shrink-0' : 'flex-1'}`}>
+            <div className="mb-2 text-[11.5px] font-medium tracking-wide text-subtle uppercase">Notes</div>
+            <p className="selectable min-h-0 flex-1 overflow-y-auto text-[13.5px] leading-relaxed whitespace-pre-line text-muted">
+              {notes || <span className="text-subtle italic">No notes for this slide.</span>}
+            </p>
+          </div>
+          {copilot && <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-line bg-elevated">{copilot}</div>}
+        </div>
+      </div>
+
+      {/* Controls. */}
+      <footer className="flex h-14 shrink-0 items-center gap-4 border-t border-line bg-app/95 px-4 text-muted">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <MicStatus status={engineStatus as never} paused={paused} device={device} showLevel={showLevel} />
+          {engineStatus === 'error' && (
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-[12px] text-danger" title={engineMessage}>
+                {engineMessage}
+              </span>
+              <Button size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            </span>
+          )}
+          <span className="hidden text-[12px] text-subtle lg:inline">Audience sees the slides only · share that display or its window</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <IconButton label="Previous slide (←)" onClick={onPrev} disabled={slideIndex === 0}>
+            <ChevronLeft size={18} />
+          </IconButton>
+          <span className="min-w-[96px] text-center text-[14px] font-medium text-fg tabular">
+            Slide {slideIndex + 1} <span className="text-subtle">/ {total}</span>
+          </span>
+          <IconButton label="Next slide (→)" onClick={onNext} disabled={isLast}>
+            <ChevronRight size={18} />
+          </IconButton>
+        </div>
+        <div className="flex flex-1 items-center justify-end gap-1">
+          <IconButton label={paused ? 'Resume sync (Space)' : 'Pause sync (Space)'} active={paused} onClick={onTogglePause}>
+            {paused ? <Play size={15} /> : <Pause size={15} />}
+          </IconButton>
+          <IconButton label="Restart slide (R)" onClick={onRestart}>
+            <RotateCcw size={15} />
+          </IconButton>
+          <IconButton label="SI copilot (Q)" active={copilotOpen} onClick={onToggleCopilot}>
+            <Sparkles size={15} />
+          </IconButton>
+          <Clock startedAt={startedAt} />
+          <IconButton label="Exit (Esc)" onClick={onExit}>
+            <X size={17} />
+          </IconButton>
+        </div>
+      </footer>
     </div>
   )
 }
