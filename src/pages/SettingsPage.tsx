@@ -757,8 +757,8 @@ function SiSection() {
 
       <div className="pt-6 pb-2 text-[12px] font-semibold tracking-wide text-subtle uppercase">Look while presenting</div>
       <SiPreview />
-      <Row label="Panel width" hint="The assistant sits beside the slide while you present. Press Q to show or hide it.">
-        <Slider value={si.panelWidth} min={320} max={560} step={10} onChange={(panelWidth) => update('si', { panelWidth })} format={(v) => `${v}px`} />
+      <Row label="SI panel width" hint="SI sits right under the reading strip while you present (drag it to move). Press Q to show or hide it.">
+        <Slider value={si.panelWidth} min={420} max={900} step={10} onChange={(panelWidth) => update('si', { panelWidth })} format={(v) => `${v}px`} />
       </Row>
       <Row label="Text size">
         <Slider value={si.textSize} min={11} max={24} onChange={(textSize) => update('si', { textSize })} format={(v) => `${v}px`} />
@@ -882,23 +882,31 @@ function AccountCard() {
 
 const PREVIEW_ANSWER = answerLayout('We’re raising $1.5M for 18 months of runway.\n• 50% engineering\n• 30% go-to-market')
 
-/** A sample SI answer box with the current text size and background opacity. */
+/** A sample SI panel with the current text size, width, transparency and highlight. */
 function SiPreview() {
   const si = useSettings((s) => s.settings.si)
   return (
     <div className="mb-3 overflow-hidden rounded-xl border border-line bg-[linear-gradient(135deg,#f6f5f1_0%,#e8e4dc_100%)] p-5">
       <div
-        className="mx-auto rounded-2xl border border-white/10 px-3.5 py-2.5 text-white shadow-xl backdrop-blur"
-        style={{ background: `rgb(22 23 28 / ${Math.round(si.opacity * 100)}%)`, width: `${Math.min(100, (si.panelWidth / 560) * 100)}%` }}
+        className="mx-auto overflow-hidden rounded-2xl border border-white/10 text-white shadow-xl backdrop-blur"
+        style={{ background: `rgb(24 25 29 / ${Math.round(si.opacity * 100)}%)`, width: `${Math.min(100, (si.panelWidth / 900) * 100)}%` }}
       >
-        <div className="flex items-center gap-1.5 text-[12px] font-semibold">
-          <Sparkles size={12} className="text-accent" /> SI copilot
+        <div className="flex h-10 items-center gap-2 px-3 text-[12px]">
+          <span className="font-semibold text-orange-300">
+            <Sparkles size={11} className="mr-1 inline -translate-y-px" />
+            SI
+          </span>
+          <span className="flex items-center gap-1 text-teal-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-teal-400" /> Listening
+          </span>
         </div>
-        <div className="mt-1.5 text-white/55" style={{ fontSize: Math.max(10.5, si.textSize - 2) }}>
-          How will you use the money you're raising?
-        </div>
-        <div className="mt-1">
-          <AnswerText layout={PREVIEW_ANSWER} current={4} style={si.highlightStyle} fontSize={si.textSize} transitionMs={120} />
+        <div className="border-t border-white/[0.07] px-4 py-3">
+          <div className="text-white/70" style={{ fontSize: Math.max(10.5, si.textSize - 1) }}>
+            How will you use the money you're raising?
+          </div>
+          <div className="mt-1.5">
+            <AnswerText layout={PREVIEW_ANSWER} current={4} style={si.highlightStyle} fontSize={si.textSize} transitionMs={120} emphasize />
+          </div>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { isTauri } from '../../services/tauri'
 import type { Settings } from '../../types'
 
 export const DEFAULT_SETTINGS: Settings = {
-  version: 5,
+  version: 6,
   speech: {
     // The browser runs Whisper on WebGPU; Tiny keeps updates live there.
     modelId: isTauri() ? 'base.en' : 'tiny.en',
@@ -70,7 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
     instructions: '',
     autoAnswer: true,
     textSize: 13,
-    panelWidth: 380,
+    panelWidth: 620,
     opacity: 0.92,
     highlightStyle: 'pill',
     followVoice: true,
@@ -112,6 +112,10 @@ function migrate(s: Settings, from: number): Settings {
       tp.width = DEFAULT_SETTINGS.teleprompter.width
     }
     s = { ...s, speech: sp, teleprompter: tp }
+  }
+  if (from < 6) {
+    // The SI panel now sits under the reading strip instead of beside the slide.
+    if (s.si.panelWidth === 380) s = { ...s, si: { ...s.si, panelWidth: DEFAULT_SETTINGS.si.panelWidth } }
   }
   if (from < 5) {
     // Answers sit over the slide: the old default let slide text show through.

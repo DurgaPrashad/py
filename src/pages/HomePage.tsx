@@ -1,4 +1,4 @@
-import { FileText, MonitorUp, MoreHorizontal, Pencil, Play, Plus, Presentation as PresentationIcon, Search, Settings2, Trash2, Upload } from 'lucide-react'
+import { FileText, Lock, MonitorUp, MoreHorizontal, Pencil, Play, Plus, Presentation as PresentationIcon, Search, Settings2, Trash2, Upload } from 'lucide-react'
 import { SourcesDialog } from '../features/copilot/SourcesDialog'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -7,12 +7,13 @@ import { Logo } from '../components/Logo'
 import { Modal } from '../components/Modal'
 import { TitleBar } from '../components/TitleBar'
 import { toast } from '../components/Toast'
-import { PRODUCT, SITE_URL } from '../config'
+import { PRODUCT } from '../config'
 import { AccountChip } from '../features/account/AccountChip'
-import { useAccount } from '../features/account/account'
-import { platform } from '../platform'
+import { PlanDashboard } from '../features/account/PlanDashboard'
+import { entitlements, useAccount } from '../features/account/account'
 import { useFileDrop, useImportFlow } from '../features/presentation/useImport'
 import { useSettings } from '../features/settings/settingsStore'
+import { platform } from '../platform'
 import { SlideImage } from '../features/slides/SlideImage'
 import { createBlankPresentation } from '../services/parser/slides'
 import {
@@ -28,6 +29,9 @@ import { formatDuration, formatRelative, plural } from '../utils/format'
 
 export function HomePage() {
   const navigate = useNavigate()
+  const profile = useAccount((s) => s.profile)
+  // Presenting needs a plan; everything else here is open. (Desktop dev builds skip the check.)
+  const locked = !entitlements(profile).canPresent && !(platform.kind === 'desktop' && import.meta.env.DEV)
   const { pick, start } = useImportFlow()
   const wpm = useSettings((s) => s.settings.wordsPerMinute)
   const [items, setItems] = useState<Presentation[] | null>(null)
@@ -93,9 +97,12 @@ export function HomePage() {
 
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[980px] px-8 pt-10 pb-16">
-          <div className="flex items-end justify-between gap-6">
+          <Greeting />
+          <PlanDashboard items={items} />
+
+          <div className="mt-10 flex items-end justify-between gap-6">
             <div>
-              <h1 className="text-[26px] font-semibold tracking-[-0.02em]">Presentations</h1>
+              <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Presentations</h1>
               <p className="mt-1 text-[13.5px] text-muted">Your slides and speaking scripts stay on this device.</p>
             </div>
             <div className="flex items-center gap-2">
@@ -110,8 +117,6 @@ export function HomePage() {
               </Button>
             </div>
           </div>
-
-          <DesktopSignInBanner />
 
           {items && items.length > 0 && (
             <div className="relative mt-8">
@@ -137,6 +142,7 @@ export function HomePage() {
                     key={p.id}
                     p={p}
                     wpm={wpm}
+                    locked={locked}
                     onOpen={() => navigate(`/edit/${p.id}`)}
                     onPresent={() => navigate(`/present/${p.id}`)}
                     onPresentCall={() => navigate(`/present/${p.id}?mode=share`)}
@@ -215,6 +221,7 @@ export function HomePage() {
 function ProjectRow({
   p,
   wpm,
+  locked,
   onOpen,
   onPresent,
   onPresentCall,
@@ -224,6 +231,7 @@ function ProjectRow({
 }: {
   p: Presentation
   wpm: number
+  locked: boolean
   onOpen: () => void
   onPresent: () => void
   onPresentCall: () => void
@@ -274,10 +282,21 @@ function ProjectRow({
         <Button size="sm" variant="ghost" icon={<Pencil size={13} />} onClick={onOpen}>
           Edit
         </Button>
-        <Button size="sm" title="Teleprompter in its own window; share only the slides on Meet, Zoom or Teams" icon={<MonitorUp size={13} />} onClick={onPresentCall}>
+        <Button
+          size="sm"
+          title={locked ? 'Needs a plan — Standard or SI' : 'Teleprompter in its own window; share only the slides on Meet, Zoom or Teams'}
+          icon={locked ? <Lock size={12} /> : <MonitorUp size={13} />}
+          onClick={onPresentCall}
+        >
           On a call
         </Button>
-        <Button size="sm" variant="primary" icon={<Play size={12} fill="currentColor" />} onClick={onPresent}>
+        <Button
+          size="sm"
+          variant="primary"
+          title={locked ? 'Needs a plan — Standard or SI' : undefined}
+          icon={locked ? <Lock size={12} /> : <Play size={12} fill="currentColor" />}
+          onClick={onPresent}
+        >
           Present
         </Button>
         <div ref={menuRef} className="relative">
@@ -373,25 +392,19 @@ function Dot() {
   return <span className="text-subtle">·</span>
 }
 
-/** Desktop: present and SI need the same account as the website. */
-function DesktopSignInBanner() {
-  const navigate = useNavigate()
-  const ready = useAccount((s) => s.ready)
-  const session = useAccount((s) => s.session)
-  if (platform.kind !== 'desktop' || !ready || session) return null
+/** "Good evening, Ada" — the dashboard heading. */
+function Greeting() {
+  const profile = useAccount((s) => s.profile)
+  const h = new Date().getHours()
+  const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  const name = profile?.full_name?.trim().split(/\s+/)[0] ?? ''
   return (
-    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft px-4 py-3">
-      <p className="text-[13px] leading-relaxed text-fg">
-        Sign in with the email you use on <span className="font-medium">{SITE_URL.replace('https://', '')}</span> — your plan comes with it.
-      </p>
-      <div className="flex gap-2">
-        <Button size="sm" variant="ghost" onClick={() => navigate('/signup')}>
-          Create account
-        </Button>
-        <Button size="sm" variant="primary" onClick={() => navigate('/login')}>
-          Sign in
-        </Button>
-      </div>
+    <div>
+      <h1 className="text-[26px] font-semibold tracking-[-0.02em]">
+        {part}
+        {name ? `, ${name}` : ''}
+      </h1>
+      <p className="mt-1 text-[13.5px] text-muted">Your plan, your numbers and your presentations, in one place.</p>
     </div>
   )
 }

@@ -8,6 +8,9 @@ export interface AnswerLayout {
   lines: { bullet: boolean; from: number; to: number }[]
 }
 
+/** Amounts, percentages and counts: "$1.5M", "50%", "18", "1,200". */
+const FIGURE = /^[([]?[$€£₹]?\d[\d,.]*(?:%|[kKmMbB]n?|x)?[)\],.;:]*$/
+
 /** Splits an answer into lines (keeping "• " bullets) and readable words. */
 export function answerLayout(answer: string): AnswerLayout {
   const words: ScriptWord[] = []
@@ -34,12 +37,15 @@ export function AnswerText({
   style,
   fontSize,
   transitionMs,
+  emphasize = false,
 }: {
   layout: AnswerLayout
   current: number
   style: HighlightStyle
   fontSize: number
   transitionMs: number
+  /** Make figures (amounts, percentages, counts) stand out. */
+  emphasize?: boolean
 }) {
   const box = useRef<HTMLDivElement>(null)
   const refs = useRef<(HTMLSpanElement | null)[]>([])
@@ -91,6 +97,7 @@ export function AnswerText({
               const i = line.from + k
               const isCurrent = started && i === idx
               const spoken = started && i < idx
+              const figure = emphasize && FIGURE.test(w.text)
               return (
                 <span key={i}>
                   <span
@@ -99,8 +106,8 @@ export function AnswerText({
                     }}
                     className="relative"
                     style={{
-                      color: isCurrent && (style === 'pill' || style === 'color') ? 'var(--app-accent)' : undefined,
-                      fontWeight: isCurrent && style === 'bold' ? 700 : undefined,
+                      color: isCurrent && (style === 'pill' || style === 'color') ? 'var(--app-accent)' : figure ? '#fdba74' : undefined,
+                      fontWeight: isCurrent && style === 'bold' ? 700 : figure ? 600 : undefined,
                       opacity: spoken ? 0.5 : style === 'bold' && started && !isCurrent ? 0.75 : 1,
                       transition: 'opacity 160ms ease, color 90ms ease',
                     }}

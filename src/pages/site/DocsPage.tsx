@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { AI_DAILY_LIMIT, PLANS, PRODUCT } from '../../config'
+import { AI_DAILY_LIMIT, INSTALL_COMMAND, PLANS, PRODUCT } from '../../config'
 import { PageHeader, SiteShell } from './SiteShell'
 
 const TOC: [string, string][] = [
   ['getting-started', 'Getting started'],
+  ['dashboard', 'Your dashboard'],
   ['import', 'Import a deck'],
   ['scripts', 'Write your script'],
   ['teleprompter', 'The teleprompter'],
@@ -52,8 +53,8 @@ export function DocsPage() {
           <Doc id="getting-started" title="Getting started">
             <ol>
               <li>
-                <Link to="/signup" className="link">Create an account</Link> with your email and a password, then choose{' '}
-                <strong>Standard</strong> or <strong>SI</strong> and pay with Razorpay. The app opens as soon as the payment goes through.
+                <Link to="/signup" className="link">Create an account</Link> with your email and a password. You can import decks and write scripts
+                straight away; choose <strong>Standard</strong> or <strong>SI</strong> and pay with Razorpay to start presenting.
               </li>
               <li>
                 Open the <Link to="/app" className="link">web app</Link> in <strong>Chrome or Edge</strong> on a computer (or install the{' '}
@@ -66,6 +67,28 @@ export function DocsPage() {
                 the teleprompter follows your voice.
               </li>
             </ol>
+          </Doc>
+
+          <Doc id="dashboard" title="Your dashboard">
+            <p>
+              The Presentations page opens with your dashboard — on the web and in the Mac app alike, for the account that's signed in:
+            </p>
+            <ul>
+              <li>
+                <strong>Your plan</strong> — Standard or SI, the date it runs until and the days left, with <em>Extend or manage</em>. Without a plan it
+                shows the plans and pays in one click.
+              </li>
+              <li>
+                <strong>Your numbers</strong> — presentations, slides, how many slides have a script, and SI sources.
+              </li>
+              <li>
+                <strong>What's included</strong> — every feature, marked <em>Included</em> or with the plan that unlocks it.
+              </li>
+            </ul>
+            <p>
+              Everything except presenting works without a plan: import decks, write and edit scripts, add sources and change settings. Presenting
+              (and the SI copilot) starts as soon as a plan is active.
+            </p>
           </Doc>
 
           <Doc id="import" title="Import a deck">
@@ -129,7 +152,9 @@ export function DocsPage() {
                 <tr><td>R</td><td>Restart the current slide's script</td></tr>
                 <tr><td>↑ / ↓</td><td>Nudge the highlighted word back or forward</td></tr>
                 <tr><td>T</td><td>Show / hide the live transcript</td></tr>
-                <tr><td>Q</td><td>Open / close the SI copilot</td></tr>
+                <tr><td>Q</td><td>Show / hide SI</td></tr>
+                <tr><td>⌘↵ / Ctrl+↵</td><td>SI: answer what was just asked</td></tr>
+                <tr><td>⌘← / ⌘→</td><td>SI: earlier / later answers</td></tr>
                 <tr><td>Esc</td><td>Exit presentation mode</td></tr>
               </tbody>
             </table>
@@ -178,28 +203,41 @@ export function DocsPage() {
 
           <Doc id="si-copilot" title="SI copilot">
             <p>
-              SI (Super Intelligence) is the assistant beside your slide. Press <code>Q</code> (or the ✦ button) while presenting. It has three parts:
+              While you present, the screen has exactly two floating panels near the top, close to your camera — and nothing else over your slide:
             </p>
             <ol>
               <li>
-                <strong>Script</strong> — the speaker script for the slide on screen. It changes with the slide, and the sentence you're speaking is
-                highlighted. A slide without a script offers <strong>Generate with AI</strong>.
+                <strong>The reading strip</strong> — one or two lines of your script, with the word you're saying highlighted in orange.
               </li>
               <li>
-                <strong>Question | Answer</strong> — type a question (Enter to send) or pick one of two <strong>suggested questions</strong> for the slide.
-                The answer streams in on the Answer tab, built only from your deck, notes and sources. As you read it aloud, its highlight follows your
-                voice. Follow-up questions keep the earlier conversation in mind.
-              </li>
-              <li>
-                <strong>Controls</strong> — <strong>Listen</strong> (web: share your meeting tab with “Also share tab audio”), <strong>Answer</strong>{' '}
-                (<code>⌘↵</code> / <code>Ctrl+↵</code>: answer what was just said), earlier answers (<code>⌘←</code> / <code>⌘→</code>), Clear and Hide.
+                <strong>SI (Super Intelligence)</strong>, right under it — press <code>Q</code> (or the ✦ button) to show or hide it. Its header shows
+                whether SI is <span className="text-teal-700">Listening</span>, hearing a question, <em>Processing</em> or has an{' '}
+                <em>Answer ready</em>. Below it: the question, then the answer as it streams in, with figures (amounts, percentages, counts)
+                emphasised. As you read the answer aloud, its highlight follows your voice.
               </li>
             </ol>
+            <ul>
+              <li>
+                <strong>Listen</strong> (headphones, web app) — share your meeting tab with “Also share tab audio”. SI waits until someone finishes a
+                question (a short pause) and joins questions asked in several parts before answering.
+              </li>
+              <li>
+                <strong>Answer</strong> (<code>⌘↵</code> / <code>Ctrl+↵</code>) — answer what was just said, right now. <strong>Ask</strong> — type a
+                question, or pick one of the suggested questions for the slide.
+              </li>
+              <li>
+                <strong>History</strong> — <code>⌘←</code> / <code>⌘→</code> (or ‹ › in the header) step through earlier answers. Follow-up questions keep
+                the earlier conversation in mind.
+              </li>
+              <li>
+                <strong>Move it</strong> — drag the grip at the left of the header; double-click the grip to put it back. Collapse it to just the header
+                with the arrow.
+              </li>
+            </ul>
             <p>
-              When listening, SI waits until someone finishes a question (a short pause) and joins questions asked in several parts before answering.
-              Panel width, text size, background transparency and highlight style are in <em>Settings → SI copilot</em>. On calls the assistant sits in
-              the floating window with your script, so it's never part of the tab you share. In the Mac app you can type questions; listening to call
-              audio needs the web app.
+              Panel width, text size, background transparency and highlight style are in <em>Settings → SI copilot</em>. On calls SI sits in the floating
+              window with your script, so it's never part of the tab you share. In the Mac app you can type questions; listening to call audio needs the
+              web app.
             </p>
           </Doc>
 
@@ -267,6 +305,17 @@ export function DocsPage() {
               model download, presents on a second display, and opens legacy <code>.ppt</code> files. Sign in with the <strong>same email</strong> you use
               on the website — your plan applies there automatically, and <em>Settings</em> shows the name and email that are signed in.
             </p>
+            <p>
+              <strong>Install:</strong> paste this in Terminal — it installs {PRODUCT} into Applications and opens it:
+            </p>
+            <p>
+              <code>{INSTALL_COMMAND}</code>
+            </p>
+            <p>
+              Downloaded the .zip instead and macOS says <strong>“Apple could not verify {PRODUCT} is free of malware”</strong>? Click <em>Done</em>, then open{' '}
+              <em>System Settings → Privacy & Security</em> and click <strong>Open Anyway</strong> (once). The{' '}
+              <Link to="/download#first-open" className="link">download page</Link> has both fixes.
+            </p>
           </Doc>
 
           <Doc id="privacy" title="Privacy & your data">
@@ -299,6 +348,10 @@ export function DocsPage() {
               <li>
                 <strong>An AI provider rejects the key</strong> — re-paste it in Settings → SI and press Test; check the model id and that your account has
                 credit.
+              </li>
+              <li>
+                <strong>“Apple could not verify {PRODUCT}…” or “{PRODUCT} is damaged” (Mac)</strong> — install with <code>{INSTALL_COMMAND}</code>, or see{' '}
+                <Link to="/download#first-open" className="link">how to open it the first time</Link>.
               </li>
               <li>
                 <strong>Screen share shows a blank window (Mac)</strong> — allow your meeting app under <em>System Settings → Privacy & Security → Screen &

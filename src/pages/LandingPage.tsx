@@ -2,7 +2,6 @@ import {
   ArrowRight,
   AudioLines,
   MessageSquare,
-  Star,
   Briefcase,
   Check,
   Download,
@@ -24,7 +23,7 @@ import { Link } from 'react-router-dom'
 import { DEFAULT_SETTINGS } from '../features/settings/defaults'
 import { Teleprompter } from '../features/teleprompter/Teleprompter'
 import { tokenizeScript } from '../services/alignment/normalize'
-import { PLANS } from '../config'
+import { INSTALL_COMMAND, PLANS } from '../config'
 import { AnswerText, answerLayout } from '../features/copilot/AnswerText'
 import { PricingTable } from './site/Pricing'
 import { PrimaryLink, SecondaryLink, SiteShell } from './site/SiteShell'
@@ -107,20 +106,47 @@ function Hero() {
   )
 }
 
-/** Illustration of presenting with the SI copilot (animated, not live speech). */
+/** The SI demo's loop, in 100 ms ticks: listen, hear the question, think, stream, read along. */
+const DEMO = { hear: 14, think: 38, stream: 50, ready: 82, end: 160 }
+const PREVIEW_QUESTION = "How will you use the money you're raising?"
+const PREVIEW_ANSWER_TEXT = "We're raising $1.5M for 18 months of runway.\n• 50% engineering — two senior hires\n• 30% go-to-market in the US\n• 20% infrastructure"
+const PREVIEW_ANSWER = answerLayout(PREVIEW_ANSWER_TEXT)
+
+/**
+ * Illustration of presenting (animated, not live speech): the two floating
+ * panels of the presenter view — the slim reading strip and, right under it,
+ * SI listening to the call and answering.
+ */
 function HeroPreview() {
   const words = useMemo(() => tokenizeScript(PREVIEW_SCRIPT), [])
+  const questionWords = useMemo(() => PREVIEW_QUESTION.split(' '), [])
   const [i, setI] = useState(0)
-  const [read, setRead] = useState(-1)
+  const [t, setT] = useState(0)
   useEffect(() => {
-    const t = setInterval(() => setI((v) => (v + 1) % words.length), 380)
-    const r = setInterval(() => setRead((v) => (v + 1 >= PREVIEW_ANSWER.words.length + 4 ? -1 : v + 1)), 300)
+    const read = setInterval(() => setI((v) => (v + 1) % words.length), 380)
+    const demo = setInterval(() => setT((v) => (v + 1) % DEMO.end), 100)
     return () => {
-      clearInterval(t)
-      clearInterval(r)
+      clearInterval(read)
+      clearInterval(demo)
     }
   }, [words.length])
-  const config = { ...DEFAULT_SETTINGS.teleprompter, fontSize: 28 }
+
+  const hearing = t >= DEMO.hear && t < DEMO.think
+  const thinking = t >= DEMO.think && t < DEMO.stream
+  const streaming = t >= DEMO.stream && t < DEMO.ready
+  const ready = t >= DEMO.ready
+  const heard = questionWords.slice(0, Math.ceil(((t - DEMO.hear + 1) / (DEMO.think - DEMO.hear - 4)) * questionWords.length)).join(' ')
+  const streamed = PREVIEW_ANSWER_TEXT.slice(0, Math.round(((t - DEMO.stream + 1) / (DEMO.ready - DEMO.stream)) * PREVIEW_ANSWER_TEXT.length))
+  const readIndex = ready ? Math.min(Math.floor((t - DEMO.ready - 6) / 2.4), PREVIEW_ANSWER.words.length - 1) : -1
+  const state = thinking || streaming
+    ? { label: 'Processing', cls: 'text-orange-300', icon: <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-orange-300/30 border-t-orange-300" /> }
+    : ready
+      ? { label: 'Answer ready', cls: 'text-orange-300', icon: <Check size={12} /> }
+      : hearing
+        ? { label: 'Hearing a question', cls: 'text-teal-300', icon: <Mic size={12} /> }
+        : { label: 'Listening', cls: 'text-teal-300', icon: <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-400" /> }
+  const config = { ...DEFAULT_SETTINGS.teleprompter, fontSize: 26 }
+
   return (
     <div className="relative mx-auto mt-16 max-w-5xl text-left">
       <div className="dark rounded-[22px] border border-slate-900/10 bg-slate-900 p-2 shadow-[0_40px_120px_-20px_rgba(15,23,42,0.45)]">
@@ -130,73 +156,86 @@ function HeroPreview() {
           <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
           <span className="ml-3 text-[11.5px] text-white/40">Present — Series A pitch</span>
         </div>
-        <div className="relative overflow-hidden rounded-xl bg-black">
-          {/* Top text bar */}
-          <div className="relative bg-[#0b0b0e]/95 px-4 shadow-[0_10px_40px_rgba(0,0,0,0.55)]">
-            <div className="mx-auto max-w-[760px]">
-              <Teleprompter words={words} current={i} config={config} pad={4} />
-            </div>
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500/80 to-transparent" />
-          </div>
-          <div className="relative p-4 sm:p-6">
-            <div className="flex aspect-[16/8.4] flex-col justify-end rounded-lg bg-[#f6f5f1] px-[8%] pb-[6%]">
+        <div className="relative overflow-hidden rounded-xl bg-[#0d0e12] [background-image:radial-gradient(ellipse_at_top,rgba(255,255,255,0.05),transparent_60%)]">
+          {/* The slide */}
+          <div className="px-[6%] pt-[150px] pb-[5%] sm:pt-[118px]">
+            <div className="flex aspect-[16/8.2] flex-col justify-end rounded-lg bg-[#f6f5f1] px-[8%] pb-[6%] shadow-2xl shadow-black/40">
               <p className="text-[10px] font-semibold tracking-[0.2em] text-emerald-700 uppercase sm:text-[11px]">Business model</p>
               <p className="mt-2 text-[clamp(14px,2.6vw,28px)] leading-tight font-bold tracking-tight text-neutral-900">
                 Building the operating infrastructure for global Voice AI
               </p>
               <p className="mt-2 text-[clamp(10px,1.3vw,14px)] text-neutral-500">150,000+ directly verifiable AI calls</p>
             </div>
-            {/* SI overlay, right under the text bar */}
-            <div className="absolute top-3 left-1/2 hidden w-[min(560px,86%)] -translate-x-1/2 flex-col gap-1.5 text-white sm:flex">
-              <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-[#0e0e11]/85 p-1 shadow-xl backdrop-blur-xl">
-                <span className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-white/15">
-                  <Headphones size={14} />
-                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-red-400" />
+          </div>
+
+          {/* Two floating panels, stacked near the top */}
+          <div className="absolute inset-x-0 top-3 flex flex-col items-center gap-2 px-3">
+            {/* 1 · Reading strip */}
+            <div className="relative w-full max-w-[640px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0b0b0e]/[0.92] px-4 shadow-[0_14px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+              <Teleprompter words={words} current={i} config={config} pad={4} />
+              <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-orange-500/60 to-transparent" />
+            </div>
+
+            {/* 2 · SI — listening and answering */}
+            <div className="w-full max-w-[640px] overflow-hidden rounded-2xl border border-white/10 bg-[#18191d]/[0.92] text-white shadow-[0_18px_50px_-10px_rgba(0,0,0,0.65)] backdrop-blur-xl">
+              <div className="flex h-11 items-center gap-1.5 pr-2 pl-1.5">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-400/15 text-teal-300">
+                  <Headphones size={15} />
                 </span>
-                <span className="flex h-7 items-center gap-1.5 rounded-lg bg-white/[0.07] px-2.5 text-[12px] font-medium">
-                  Answer <kbd className="rounded bg-white/10 px-1 font-sans text-[10px] text-white/60">⌘↵</kbd>
+                <span className="flex items-center gap-1 text-[12.5px] font-semibold text-orange-300">
+                  <Sparkles size={12} /> SI
                 </span>
-                <span className="flex h-7 items-center rounded-lg bg-white/[0.07] px-2.5 text-[12px] font-medium">Ask</span>
-                <span className="ml-auto mr-1 rounded-full bg-orange-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-orange-300">
-                  <Sparkles size={10} className="mr-0.5 inline -translate-y-px" />
-                  SI
+                <span className={`ml-1 flex items-center gap-1.5 text-[12px] ${state.cls}`}>
+                  {state.icon}
+                  <span className="hidden sm:inline">{state.label}</span>
                 </span>
-                <span className="h-7 rounded-lg bg-red-500/85 px-2.5 text-[12px] leading-7 font-semibold">Hide</span>
+                <span className="flex-1" />
+                <span className="rounded-lg px-2 py-1 text-[12px] font-medium text-white/75">Ask</span>
+                <span className="rounded-lg bg-white/[0.07] px-2 py-1 text-[12px] font-medium text-white/85">
+                  Answer <kbd className="ml-0.5 font-sans text-[10px] text-white/40">⌘↵</kbd>
+                </span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-[#0e0e11]/85 py-1.5 pr-2 pl-2.5 shadow-xl backdrop-blur-xl">
-                <AudioLines size={14} className="shrink-0 text-emerald-400" />
-                {['How will you', 'use the money', "you're raising?"].map((c, k) => (
-                  <span key={c} className={`rounded-md px-2 py-0.5 text-[11.5px] ${k === 2 ? 'bg-white/20' : 'bg-white/[0.08] text-white/75'}`}>
-                    {c}
-                  </span>
-                ))}
-                <span className="ml-auto text-[11px] text-white/50">Clear</span>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-[#0e0e11]/85 px-3.5 py-3 shadow-xl backdrop-blur-xl">
-                <p className="flex items-start gap-2 text-[12.5px] text-white/85">
-                  <MessageSquare size={13} className="mt-0.5 shrink-0 text-white/50" />
-                  <span>
-                    <b className="font-semibold text-white">Question:</b> How will you use the money you're raising?
-                  </span>
-                </p>
-                <div className="mt-2 border-t border-white/[0.08] pt-2">
-                  <div className="mb-0.5 text-[13px] font-semibold">
-                    <Star size={12} className="mr-1 inline -translate-y-px text-amber-400" fill="currentColor" />
-                    Answer:
-                  </div>
-                  <AnswerText layout={PREVIEW_ANSWER} current={Math.min(read, PREVIEW_ANSWER.words.length - 1)} style="pill" fontSize={13} transitionMs={120} />
-                </div>
+              <div className="min-h-[132px] border-t border-white/[0.07] px-4 py-3">
+                {t < DEMO.hear ? (
+                  <p className="flex items-center gap-2 text-[12.5px] text-white/45">
+                    <AudioLines size={14} className="text-teal-400/80" /> Listening to the call — answers appear here when someone asks a question.
+                  </p>
+                ) : hearing ? (
+                  <p className="text-[13px] text-teal-200/90 italic">
+                    {heard}
+                    <span className="ml-0.5 inline-block h-3 w-px translate-y-0.5 animate-pulse bg-teal-300" />
+                  </p>
+                ) : (
+                  <>
+                    <p className="flex items-start gap-2 text-[12.5px] leading-snug text-white/60">
+                      <MessageSquare size={13} className="mt-0.5 shrink-0 text-white/40" />
+                      {PREVIEW_QUESTION}
+                    </p>
+                    <div className="mt-2">
+                      {thinking ? (
+                        <p className="text-[13px] text-white/40">Thinking…</p>
+                      ) : streaming ? (
+                        <p className="text-[13px] leading-[1.6] whitespace-pre-line text-white/90">
+                          {streamed}
+                          <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-orange-300" />
+                        </p>
+                      ) : (
+                        <AnswerText layout={PREVIEW_ANSWER} current={readIndex} style="pill" fontSize={13} transitionMs={120} emphasize />
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
-      <p className="mt-4 text-center text-[12.5px] text-slate-500">Preview. The script and the AI answer both follow your voice as you speak.</p>
+      <p className="mt-4 text-center text-[12.5px] text-slate-500">
+        Preview. Two panels and nothing else: your script follows your voice, and SI answers the question just asked — figures stand out.
+      </p>
     </div>
   )
 }
-
-const PREVIEW_ANSWER = answerLayout("We're raising $1.5M for 18 months of runway.\n• 50% engineering — two senior hires\n• 30% go-to-market in the US\n• 20% infrastructure")
 
 /** The landing page's premium desktop download button (jumps to the download section). */
 function DesktopCta() {
@@ -453,9 +492,10 @@ function DownloadSection() {
                 : 'Apple Silicon (M1 and later), macOS 11 or newer.'}{' '}
               Works offline after a one-time speech model download. Sign in with the same account.
             </p>
-            <p className="mt-2 text-[12.5px] text-slate-500">
-              First launch: macOS asks once — open System Settings → Privacy & Security and click <b>Open Anyway</b>.
-            </p>
+            <p className="mt-3 text-[12.5px] text-slate-500">Easiest: paste this in Terminal — it installs and opens the app with no macOS warning.</p>
+            <code className="mt-1.5 block rounded-lg bg-slate-900 px-3 py-2 font-mono text-[12px] [overflow-wrap:anywhere] text-slate-100 select-all">
+              {INSTALL_COMMAND}
+            </code>
           </div>
           <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row">
             {release ? (

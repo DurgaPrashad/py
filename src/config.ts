@@ -2,6 +2,8 @@
 
 export const PRODUCT = 'Present'
 export const SITE_URL = 'https://present.waspid.com'
+/** Installs the Mac app; curl downloads aren't quarantined, so it opens without Gatekeeper's warning. */
+export const INSTALL_COMMAND = `curl -fsSL ${SITE_URL}/install.sh | sh`
 
 // The publishable key only allows what the database's row-level security and
 // function grants allow; secrets live server-side in Supabase Vault.

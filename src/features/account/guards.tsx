@@ -1,4 +1,4 @@
-import { Loader2, LogOut, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Loader2, LogOut, RefreshCw } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '../../components/Logo'
@@ -7,6 +7,7 @@ import { PRODUCT } from '../../config'
 import { PricingTable } from '../../pages/site/Pricing'
 import { platform } from '../../platform'
 import { errorMessage } from '../../services/tauri'
+import { HOME } from '../../utils/routes'
 import { entitlements, useAccount } from './account'
 import { syncPayments } from './checkout'
 
@@ -68,6 +69,13 @@ function ChoosePlan() {
           <div className="flex items-center gap-2.5">
             <Logo size={28} />
             <span className="text-[15px] font-semibold tracking-tight">{PRODUCT}</span>
+            <button
+              type="button"
+              onClick={() => navigate(HOME)}
+              className="ml-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[13.5px] text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <ArrowLeft size={14} /> Dashboard
+            </button>
           </div>
           <div className="flex items-center gap-3 text-[13.5px] text-slate-500">
             <span className="hidden sm:inline">{profile?.email}</span>
@@ -86,10 +94,10 @@ function ChoosePlan() {
       </header>
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-[30px] leading-tight font-semibold tracking-[-0.025em] sm:text-[36px]">Choose your plan to start</h1>
+          <h1 className="text-[30px] leading-tight font-semibold tracking-[-0.025em] sm:text-[36px]">Choose a plan to start presenting</h1>
           <p className="mt-3 text-[15.5px] leading-relaxed text-slate-600">
-            Your account is ready. Pick <b className="font-semibold text-slate-900">Standard</b> to present with your own script, or{' '}
-            <b className="font-semibold text-slate-900">SI</b> for the AI copilot too. You can start the moment the payment goes through.
+            Your presentations and scripts are saved. Pick <b className="font-semibold text-slate-900">Standard</b> to present with your own script, or{' '}
+            <b className="font-semibold text-slate-900">SI</b> for the AI copilot too. This page opens the moment the payment goes through.
           </p>
         </div>
         <div className="mt-4">

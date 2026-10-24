@@ -38,8 +38,9 @@ There is no free plan or trial: after signing up, the app shows a plan picker an
 - **Public client config:** `src/config.ts` (Supabase URL + publishable key; override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`).
 - **Sources:** the **+** button on a presentation (or *Sources* in the editor) adds material SI may use — typed text with SI, file uploads (PDF, .docx, text) with SI yearly (`profiles.si_yearly_until`). Files are read on the device; only their text is stored with the presentation.
 - **SI with any AI:** *Settings → SI copilot* picks the built-in AI (server-side, site key) or the presenter's own API key for Anthropic Claude, OpenAI, Google Gemini, Groq, OpenRouter or any OpenAI-compatible endpoint (Ollama, LM Studio, DeepSeek…). Own keys stay on the device; answers stream straight from the provider (`src/features/copilot/providers.ts`), and `claim_copilot_use` still checks the SI plan / trial. Answer length and custom instructions apply to both.
-- **SI assistant:** in presentation mode press `Q` (or the ✦ button). It docks beside the slide in three parts: **A** the active slide's script (the sentence being spoken is highlighted; empty slides offer *Generate with AI*), **B** *Question | Answer* (type or pick one of two AI-suggested questions; answers stream, follow-ups keep the recent conversation, and the highlight follows your voice as you read), **C** Listen, Answer `⌘↵`, history, Clear, Hide. Listening waits for the end of a question (1.3 s quiet). Code: `src/features/copilot/`.
-- **Website pages:** `/`, `/pricing`, `/docs` (every feature, documented), `/download` (Mac app install guide), `/privacy`, `/terms`, `/refunds`, `/shipping`, `/cookies`, `/contact`, `/login`, `/signup`, `/account`. Settings shows the signed-in name, email and plan; the Mac app signs in with the same account. The web app is at `/app` and needs an account; presenting needs the trial or a plan.
+- **Presenter view — exactly two floating panels** near the top: **1** the slim reading strip (current phrase, spoken word in orange) and **2** SI, stacked right under it (`Q` shows/hides). SI's header: listen (teal), SI (orange), Listening / Hearing a question / Processing / Answer ready, Ask, Answer `⌘↵`, history `⌘←/⌘→`, collapse, close; drag the grip to move it (double-click resets). Body: the question, then the streamed answer with figures emphasised and a highlight that follows your voice. Listening waits for the end of a question (1.3 s quiet). Code: `src/features/copilot/SiPanel.tsx`, `src/pages/PresentPage.tsx`.
+- **Dashboard:** the Presentations page (web and Mac app) opens with the signed-in plan (days left, extend, buy), counts (presentations, slides, scripted slides, sources) and every feature marked included or locked. Everything is open without a plan except presenting (`/present/:id` is behind `RequirePlan`). Code: `src/features/account/PlanDashboard.tsx`.
+- **Website pages:** `/`, `/pricing`, `/docs` (every feature, documented), `/download` (Mac app install guide), `/privacy`, `/terms`, `/refunds`, `/shipping`, `/cookies`, `/contact`, `/login`, `/signup`, `/account`. Settings shows the signed-in name, email and plan; the Mac app signs in with the same account. The web app is at `/app` and needs an account; presenting needs a paid plan.
 
 ## Web app
 
@@ -81,7 +82,13 @@ npm run package:mac  # build + ad-hoc sign + zip into public/downloads (served b
                      # (the desktop build strips website-only files: public/downloads, public/__dev__)
 ```
 
-The website's front page (`/`) explains Present and offers this zip; the web app itself is at `/app`. The Mac app is ad-hoc signed but not notarized, so on first launch macOS asks you to allow it under *System Settings → Privacy & Security → Open Anyway*.
+The website's front page (`/`) explains Present and offers this zip; the web app itself is at `/app`. The Mac app is ad-hoc signed but not notarized (that needs an Apple Developer ID), so a browser download shows “Apple could not verify…”. `public/install.sh` avoids it — curl downloads aren't quarantined:
+
+```bash
+curl -fsSL https://present.waspid.com/install.sh | sh
+```
+
+It installs to `/Applications` (or `~/Applications`) and opens the app. For a browser download: *System Settings → Privacy & Security → Open Anyway*, or `xattr -dr com.apple.quarantine /Applications/Present.app`.
 
 ## Using it
 

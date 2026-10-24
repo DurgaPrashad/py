@@ -87,9 +87,10 @@ export function App() {
           <Route path="/reset" element={<AuthPage mode="reset" />} />
           <Route path="/account" element={<AccountPage />} />
 
-          <Route path={HOME} element={paid(<HomePage />)} />
-          <Route path="/import" element={paid(<ImportPage />)} />
-          <Route path="/edit/:id" element={paid(<EditorPage />)} />
+          {/* Everything is open to explore; presenting needs a plan. */}
+          <Route path={HOME} element={app(<HomePage />)} />
+          <Route path="/import" element={app(<ImportPage />)} />
+          <Route path="/edit/:id" element={app(<EditorPage />)} />
           <Route path="/present/:id" element={paid(<PresentPage />)} />
           <Route path="/audience/:id" element={<AudiencePage />} />
           <Route path="/settings" element={app(<SettingsPage />)} />

@@ -8,7 +8,7 @@ import { FitBox } from '../components/FitBox'
 import { toast } from '../components/Toast'
 import { useAccount } from '../features/account/account'
 import { deckContext, runCopilot } from '../features/copilot/api'
-import { CopilotPanel, type ScriptView } from '../features/copilot/CopilotPanel'
+import { SI_HEADER_H, SiPanel } from '../features/copilot/SiPanel'
 import { useCopilot } from '../features/copilot/useCopilot'
 import { MicStatus } from '../features/speech/MicStatus'
 import { ModelList } from '../features/speech/ModelList'
@@ -27,8 +27,8 @@ import type { MonitorInfo, Presentation, ScriptWord, Settings, Slide, VoiceComma
 import { formatClock } from '../utils/format'
 import { HOME } from '../utils/routes'
 
-/** Extra height of the browser's floating window when it also shows the assistant. */
-const PIP_COPILOT_H = 380
+/** Extra height of the browser's floating window when it also shows SI. */
+const PIP_COPILOT_H = 230
 
 const COMMAND_LABEL: Record<VoiceCommand, string> = {
   next: 'Next slide',
@@ -71,6 +71,8 @@ export function PresentPage() {
 
   const engine = useSpeechEngine(!!p && voiceEnabled, settings.speech)
   const [copilotOpen, setCopilotOpen] = useState(false)
+  /** Where the presenter dragged SI to (relative to its place under the strip). */
+  const [siOffset, setSiOffset] = useState({ x: 0, y: 0 })
   const copilot = useCopilot(p, slideIndex, settings.speech.modelId, copilotOpen)
   // For handlers registered once (speech, keyboard).
   const copilotRef = useRef(copilot)
@@ -422,6 +424,7 @@ export function PresentPage() {
   const stripRef = useRef<HTMLDivElement>(null)
   const [stripH, setStripH] = useState(0)
   const [viewportW, setViewportW] = useState(() => window.innerWidth)
+  const [viewportH, setViewportH] = useState(() => window.innerHeight)
   useLayoutEffect(() => {
     const el = stripRef.current
     if (!el) return
@@ -430,7 +433,10 @@ export function PresentPage() {
     return () => ro.disconnect()
   }, [p, tp.position])
   useEffect(() => {
-    const onResize = () => setViewportW(window.innerWidth)
+    const onResize = () => {
+      setViewportW(window.innerWidth)
+      setViewportH(window.innerHeight)
+    }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
@@ -461,16 +467,6 @@ export function PresentPage() {
   if (!p || !slide) return <div className="h-full bg-black" />
 
   const highlight = tp.highlightTarget === 'next' && spoken ? Math.min(wordIndex + 1, words.length - 1) : wordIndex
-  // The assistant's script section: the slide on screen, kept in sync with the voice position.
-  const scriptView: ScriptView = {
-    title: p.name,
-    slideLabel: `Slide ${slideIndex + 1} / ${total}`,
-    words,
-    wordIndex,
-    spoken,
-    onGenerate: () => void generateScript(),
-    generating,
-  }
   const isLast = slideIndex === total - 1
   const dual = !!slidesWindow
   const nextSlide = p.slides[slideIndex + 1]
@@ -496,7 +492,7 @@ export function PresentPage() {
         current={highlight}
         config={tp}
         onWordClick={placeWord}
-        pad={camera ? 4 : 28}
+        pad={tp.position === 'bottom' ? 28 : 4}
         emptyText={
           <>
             <span>No script for this slide</span>
@@ -519,31 +515,29 @@ export function PresentPage() {
     </>
   )
 
-  // Camera strip: a floating panel centred on the camera, just below it.
-  const camW = Math.min(viewportW - 24, Math.max(360, (viewportW * tp.width) / 100))
-  const camLeft = Math.max(12, Math.min(viewportW - camW - 12, anchor.centerX - camW / 2))
-  const camTop = anchor.top + 6
+  // Exactly two panels: (1) the slim reading strip, floating near the top
+  // (under the camera, or centred), and (2) SI directly below it. A bottom
+  // bar keeps the strip at the bottom and SI at the top.
+  const deckOnly = web && shareLive && !!pipWindow
+  const floatingStrip = tp.position !== 'bottom'
+  const stripW = Math.min(viewportW - 24, Math.max(360, (viewportW * tp.width) / 100))
+  const stripLeft = camera ? Math.max(12, Math.min(viewportW - stripW - 12, anchor.centerX - stripW / 2)) : (viewportW - stripW) / 2
+  const stripTop = camera ? anchor.top + 6 : 12
 
-  const strip = camera ? (
-    <div ref={stripRef} className="absolute z-20" style={{ top: camTop, left: camLeft, width: camW }}>
+  const strip = floatingStrip ? (
+    <div ref={stripRef} className="absolute z-20" style={{ top: stripTop, left: stripLeft, width: stripW }}>
       <div
-        className="rounded-[20px] border border-white/[0.08] px-4 shadow-[0_18px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+        className="relative overflow-hidden rounded-2xl border border-white/[0.08] px-4 shadow-[0_14px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl"
         style={{ background: stripBg }}
       >
         {prompter}
+        <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
       </div>
       {chips}
     </div>
   ) : (
-    <div ref={stripRef} className={`absolute inset-x-0 z-20 ${tp.position === 'top' ? 'top-0' : 'bottom-0'}`}>
-      <div
-        className={`relative ${tp.position === 'top' ? 'shadow-[0_10px_40px_rgba(0,0,0,0.55)]' : 'border-t border-white/[0.07]'}`}
-        style={{ background: stripBg }}
-      >
-        {/* The top bar is the default layout: an accent edge makes it easy to find at a glance. */}
-        {tp.position === 'top' && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-accent/80 to-transparent" />
-        )}
+    <div ref={stripRef} className="absolute inset-x-0 bottom-0 z-20">
+      <div className="border-t border-white/[0.07]" style={{ background: stripBg }}>
         <div className="mx-auto" style={{ width: `${tp.width}%` }}>
           {prompter}
         </div>
@@ -552,7 +546,19 @@ export function PresentPage() {
     </div>
   )
 
-  const padTop = camera ? camTop + stripH + 14 : tp.position === 'top' ? stripH + 14 : 28
+  const siOpen = copilotOpen && !deckOnly
+  const siW = Math.min(viewportW - 24, Math.max(floatingStrip ? stripW : 0, settings.si.panelWidth))
+  const siCenter = floatingStrip ? stripLeft + stripW / 2 : viewportW / 2
+  const siLeft = Math.max(12, Math.min(viewportW - siW - 12, siCenter - siW / 2))
+  const siTop = floatingStrip ? stripTop + stripH + 8 : 12
+  // The slide starts below the strip and SI's header; an answer opens over the slide's top edge.
+  // Dragged position, kept on screen (header always reachable).
+  const clampSiX = (x: number) => Math.max(8 - siLeft, Math.min(viewportW - siW - 8 - siLeft, x))
+  const clampSiY = (y: number) => Math.max(8 - siTop, Math.min(viewportH - SI_HEADER_H - 8 - siTop, y))
+  const siX = clampSiX(siOffset.x)
+  const siY = clampSiY(siOffset.y)
+  const siReserve = siOpen ? SI_HEADER_H + 8 : 0
+  const padTop = floatingStrip ? stripTop + stripH + siReserve + 14 : siOpen ? 12 + siReserve + 14 : 28
   const padBottom = tp.position === 'bottom' ? stripH + 14 : 56
   const controlsHidden = idle && engine.status !== 'error' && engine.status !== 'missing-model' && !(mode === 'share' && !shareLive)
   const stripChip =
@@ -569,7 +575,7 @@ export function PresentPage() {
       onNext={() => goTo(slideIndex + 1)}
       onTogglePause={() => setPausedBoth(!paused)}
       onExit={() => navigate(-1)}
-      extra={pipWindow && copilotInPip ? <CopilotPanel copilot={copilot} script={scriptView} variant="strip" /> : undefined}
+      extra={pipWindow && copilotInPip ? <SiPanel copilot={copilot} compact /> : undefined}
       promptH={compactH}
     />
   )
@@ -615,17 +621,14 @@ export function PresentPage() {
         onTogglePause={() => setPausedBoth(!paused)}
         onRestart={restart}
         onExit={() => navigate(-1)}
-        copilot={copilotOpen ? <CopilotPanel copilot={copilot} script={scriptView} variant="side" onClose={() => setCopilotOpen(false)} /> : null}
+        copilot={copilotOpen ? <SiPanel copilot={copilot} onClose={() => setCopilotOpen(false)} /> : null}
         copilotOpen={copilotOpen}
         onToggleCopilot={() => setCopilotOpen((v) => !v)}
       />
     )
   }
 
-  // In browser share mode the tab itself is what the audience sees: deck only.
-  const deckOnly = web && shareLive && !!pipWindow
-  const sidePanel = copilotOpen && !deckOnly
-  const panelW = Math.min(settings.si.panelWidth, Math.max(300, viewportW * 0.42))
+  // In browser share mode the tab itself is what the audience sees: deck only (deckOnly above).
 
   return (
     <div
@@ -637,7 +640,7 @@ export function PresentPage() {
 
       <div
         className="absolute inset-0 flex items-center justify-center gap-6 px-6"
-        style={deckOnly ? { padding: 0 } : { paddingTop: padTop, paddingBottom: padBottom, paddingRight: sidePanel ? panelW + 40 : undefined }}
+        style={deckOnly ? { padding: 0 } : { paddingTop: padTop, paddingBottom: padBottom, }}
         data-tauri-drag-region
       >
         <div className={`flex h-full min-w-0 items-center justify-center ${dual && !deckOnly ? 'flex-[3]' : 'w-full'}`}>
@@ -667,9 +670,14 @@ export function PresentPage() {
         )}
       </div>
 
-      {sidePanel && (
-        <aside className="absolute right-4 z-30 animate-rise" style={{ top: Math.max(16, padTop - 14), bottom: padBottom - 8, width: panelW }}>
-          <CopilotPanel copilot={copilot} script={scriptView} variant="side" onClose={() => setCopilotOpen(false)} />
+      {siOpen && (
+        <aside className="absolute z-30 animate-rise" style={{ top: siTop + siY, left: siLeft + siX, width: siW }}>
+          <SiPanel
+            copilot={copilot}
+            onClose={() => setCopilotOpen(false)}
+            onDrag={(dx, dy) => setSiOffset((o) => ({ x: clampSiX(clampSiX(o.x) + dx), y: clampSiY(clampSiY(o.y) + dy) }))}
+            onResetPosition={() => setSiOffset({ x: 0, y: 0 })}
+          />
         </aside>
       )}
 

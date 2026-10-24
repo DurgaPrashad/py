@@ -73,7 +73,7 @@ export type AiProvider = 'reflex' | 'anthropic' | 'openai' | 'gemini' | 'groq' |
 export type OwnKeyProvider = Exclude<AiProvider, 'reflex'>
 
 export interface Settings {
-  version: 5
+  version: 6
   speech: {
     modelId: string
     deviceId: string | null
@@ -138,7 +138,7 @@ export interface Settings {
     autoAnswer: boolean
     /** Answer and script text size in the assistant (px). */
     textSize: number
-    /** Width of the assistant panel beside the slide (px). */
+    /** Width of the SI panel under the reading strip (px). */
     panelWidth: number
     /** Opacity of the copilot's black background, 0..1. */
     opacity: number
