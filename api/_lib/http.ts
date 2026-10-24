@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /** Small helpers shared by the Vercel functions in api/. */
 
 export class HttpError extends Error {
@@ -14,7 +15,8 @@ export class HttpError extends Error {
 
 /** Server configuration from environment variables (set them in Vercel → Settings → Environment Variables). */
 export function env(name: string): string | undefined {
-  const v = process.env[name]?.trim()
+  // Values pasted with quotes around them still work.
+  const v = process.env[name]?.trim().replace(/^(['"])(.*)\1$/, '$2').trim()
   return v ? v : undefined
 }
 

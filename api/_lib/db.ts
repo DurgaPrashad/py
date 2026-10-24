@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import postgres from 'postgres'
 import { requireEnv } from './http.js'
 
@@ -9,8 +10,17 @@ let client: ReturnType<typeof postgres> | null = null
  * the IPv6-only direct host.
  */
 export function db() {
-  client ??= postgres(requireEnv('DATABASE_URL'), { prepare: false, max: 1, idle_timeout: 20, connect_timeout: 10 })
+  client ??= postgres(databaseUrl(requireEnv('DATABASE_URL')), { prepare: false, max: 1, idle_timeout: 20, connect_timeout: 10 })
   return client
+}
+
+/** Accepts a password with a raw "@" (or other reserved characters) in it by encoding it. */
+export function databaseUrl(raw: string): string {
+  const m = /^(postgres(?:ql)?:\/\/)([^:/@]+):(.*)@([^@]+)$/.exec(raw)
+  if (!m) return raw
+  const [, scheme, user, password, rest] = m
+  const encoded = /%[0-9a-f]{2}/i.test(password) ? password : encodeURIComponent(password)
+  return `${scheme}${user}:${encoded}@${rest}`
 }
 
 export interface PaymentRow {

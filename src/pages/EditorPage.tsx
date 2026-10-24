@@ -167,7 +167,7 @@ export function EditorPage() {
     try {
       const res = await runCopilot(useSettings.getState().settings.si, 'script', source, deckContext(p, index))
       updateSlide(index, { script: res.text })
-      toast(res.si ? 'Script drafted — edit it to sound like you.' : `Script drafted. ${res.free_left} free SI answers left.`, 'success')
+      toast('Script drafted — edit it to sound like you.', 'success')
       if (!res.si) void useAccount.getState().refresh().catch(() => null)
     } catch (e) {
       toast(errorMessage(e), 'error')

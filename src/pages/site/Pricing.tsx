@@ -2,7 +2,7 @@ import { Check, Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '../../components/Toast'
-import { AI_DAILY_LIMIT, FREE_AI_ANSWERS, PLANS, planFor, SITE_URL, TRIAL_DAYS, type PlanId, type Tier } from '../../config'
+import { AI_DAILY_LIMIT, PLANS, planFor, SITE_URL, type PlanId, type Tier } from '../../config'
 import { entitlements, useAccount } from '../../features/account/account'
 import { checkout } from '../../features/account/checkout'
 import { platform } from '../../platform'
@@ -11,8 +11,11 @@ import { PageHeader, SiteShell } from './SiteShell'
 
 type Interval = 'month' | 'year'
 
-/** Starts checkout for a plan, sending signed-out visitors to sign-up first. */
-export function useBuyPlan() {
+/**
+ * Starts checkout for a plan, sending signed-out visitors to sign-up first.
+ * After paying: go to `afterPaid` (default: the account page), or stay put with null.
+ */
+export function useBuyPlan(afterPaid: string | null = '/account?paid=1') {
   const navigate = useNavigate()
   const session = useAccount((s) => s.session)
   const setProfile = useAccount((s) => s.setProfile)
@@ -35,7 +38,7 @@ export function useBuyPlan() {
       if (res.status === 'paid') {
         setProfile(res.profile)
         toast(`Payment received — ${PLANS[plan].tier === 'si' ? 'SI' : 'Standard'} is active. Thank you!`, 'success')
-        navigate('/account?paid=1')
+        if (afterPaid !== null) navigate(afterPaid)
       }
     } catch (e) {
       toast(errorMessage(e), 'error')
@@ -67,11 +70,9 @@ const SI_FEATURES = [
   `Up to ${AI_DAILY_LIMIT} answers a day with the built-in AI — no limit with your own key`,
 ]
 
-export function PricingTable() {
+export function PricingTable({ afterPaid }: { afterPaid?: string | null }) {
   const [interval, setBilling] = useState<Interval>('month')
-  const { buy, busy } = useBuyPlan()
-  const navigate = useNavigate()
-  const session = useAccount((s) => s.session)
+  const { buy, busy } = useBuyPlan(afterPaid)
   const profile = useAccount((s) => s.profile)
   const ent = entitlements(profile)
 
@@ -115,30 +116,7 @@ export function PricingTable() {
         </div>
       </div>
 
-      <div className="mt-10 grid gap-5 lg:grid-cols-3">
-        {/* Free trial */}
-        <div className="flex flex-col rounded-3xl border border-slate-200 bg-white p-7">
-          <h3 className="text-[17px] font-semibold">Free trial</h3>
-          <p className="mt-1 text-[13.5px] text-slate-500">Try everything online — no card needed.</p>
-          <div className="mt-6 flex items-baseline gap-1.5">
-            <span className="text-[44px] leading-none font-semibold tracking-tight">$0</span>
-            <span className="text-[14px] text-slate-500">for {TRIAL_DAYS} days</span>
-          </div>
-          <p className="mt-2 h-5 text-[13px] text-slate-500">Then choose Standard or SI</p>
-          <button
-            type="button"
-            onClick={() => navigate(session ? '/app' : '/signup')}
-            className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-300 text-[14.5px] font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
-          >
-            {session ? 'Open the app' : 'Start free trial'}
-          </button>
-          <ul className="mt-7 space-y-3 text-[14px] text-slate-700">
-            <Feature>Everything in Standard for {TRIAL_DAYS} days</Feature>
-            <Feature>{FREE_AI_ANSWERS} SI copilot answers to try</Feature>
-            <Feature>Works right in your browser</Feature>
-          </ul>
-        </div>
-
+      <div className="mx-auto mt-10 grid max-w-4xl gap-5 md:grid-cols-2">
         {/* Standard (non-SI) */}
         <div className="flex flex-col rounded-3xl border border-slate-200 bg-white p-7">
           <div className="flex items-center justify-between">
@@ -240,8 +218,8 @@ export function PricingPage() {
   return (
     <SiteShell title="Pricing">
       <PageHeader eyebrow="Pricing" title="Simple plans for every presenter">
-        Start with a free {TRIAL_DAYS}-day trial. Choose <b className="font-semibold text-slate-900">Standard</b> for unlimited teleprompting with your own script,
-        or <b className="font-semibold text-slate-900">SI</b> when you want AI help with live questions.
+        Choose <b className="font-semibold text-slate-900">Standard</b> for unlimited teleprompting with your own script, or{' '}
+        <b className="font-semibold text-slate-900">SI</b> when you want AI help with live questions. Pay once for a month or a year.
       </PageHeader>
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
         <PricingTable />

@@ -27,3 +27,13 @@ describe('Razorpay signatures', () => {
     expect(validWebhookSignature(body, sig, 'other-secret')).toBe(false)
   })
 })
+
+describe('DATABASE_URL', () => {
+  it('encodes a raw @ in the password and leaves encoded ones alone', async () => {
+    const { databaseUrl } = await import('./db.js')
+    expect(databaseUrl('postgresql://postgres.ref:pa@ss@aws-0-us-east-1.pooler.supabase.com:6543/postgres')).toBe(
+      'postgresql://postgres.ref:pa%40ss@aws-0-us-east-1.pooler.supabase.com:6543/postgres',
+    )
+    expect(databaseUrl('postgresql://postgres.ref:pa%40ss@host:6543/postgres')).toBe('postgresql://postgres.ref:pa%40ss@host:6543/postgres')
+  })
+})

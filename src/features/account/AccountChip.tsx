@@ -1,9 +1,9 @@
 import { CircleUserRound, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/Button'
-import { daysLeft, entitlements, useAccount } from './account'
+import { entitlements, useAccount } from './account'
 
-/** Title-bar entry to the account: current plan, trial days, or "Choose a plan". */
+/** Title-bar entry to the account: the current plan, or "Choose a plan". */
 export function AccountChip() {
   const navigate = useNavigate()
   const session = useAccount((s) => s.session)
@@ -34,15 +34,7 @@ export function AccountChip() {
       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-soft text-[10.5px] font-semibold text-accent uppercase">
         {(profile.full_name || profile.email).slice(0, 1)}
       </span>
-      {ent.si ? (
-        <span className="font-medium text-accent">SI</span>
-      ) : ent.standard ? (
-        <span className="font-medium text-fg">Standard</span>
-      ) : (
-        <span>
-          Trial · <span className="text-fg">{daysLeft(profile.trial_until)}d left</span>
-        </span>
-      )}
+      <span className={`font-medium ${ent.si ? 'text-accent' : 'text-fg'}`}>{ent.si ? 'SI' : 'Standard'}</span>
     </button>
   )
 }

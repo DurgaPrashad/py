@@ -382,7 +382,7 @@ function DesktopSignInBanner() {
   return (
     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft px-4 py-3">
       <p className="text-[13px] leading-relaxed text-fg">
-        Sign in with the email you use on <span className="font-medium">{SITE_URL.replace('https://', '')}</span> — your trial or plan comes with it.
+        Sign in with the email you use on <span className="font-medium">{SITE_URL.replace('https://', '')}</span> — your plan comes with it.
       </p>
       <div className="flex gap-2">
         <Button size="sm" variant="ghost" onClick={() => navigate('/signup')}>

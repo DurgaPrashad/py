@@ -1,13 +1,16 @@
-import { Check, Loader2, Lock, Sparkles } from 'lucide-react'
-import { type ReactNode } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Loader2, LogOut, RefreshCw } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '../../components/Logo'
-import { PLANS, TRIAL_DAYS } from '../../config'
+import { toast } from '../../components/Toast'
+import { PRODUCT } from '../../config'
+import { PricingTable } from '../../pages/site/Pricing'
 import { platform } from '../../platform'
-import { HOME } from '../../utils/routes'
+import { errorMessage } from '../../services/tauri'
 import { entitlements, useAccount } from './account'
+import { syncPayments } from './checkout'
 
-/** The web app needs an account (the desktop app works signed out, except for paid features). */
+/** The web app needs an account (the desktop app asks when you open a plan-only page). */
 export function RequireAccount({ children }: { children: ReactNode }) {
   const ready = useAccount((s) => s.ready)
   const session = useAccount((s) => s.session)
@@ -18,72 +21,92 @@ export function RequireAccount({ children }: { children: ReactNode }) {
   return children
 }
 
-/** Presenting needs a plan or the free trial. */
+/** Using the app needs a paid plan (Standard or SI). Without one: choose and pay, right here. */
 export function RequirePlan({ children }: { children: ReactNode }) {
   const ready = useAccount((s) => s.ready)
   const session = useAccount((s) => s.session)
   const profile = useAccount((s) => s.profile)
   const { pathname, search } = useLocation()
-  // Desktop self-tests (REFLEX_SELFTEST_FILE) present without an account.
+  // Desktop self-tests (REFLEX_SELFTEST_FILE) run without an account.
   if (platform.kind === 'desktop' && import.meta.env.DEV) return children
   if (!ready || (session && !profile)) {
     return (
-      <div className="flex h-full items-center justify-center bg-black">
-        <Loader2 size={20} className="animate-spin text-white/40" />
+      <div className="flex h-full items-center justify-center bg-app">
+        <Loader2 size={20} className="animate-spin text-subtle" />
       </div>
     )
   }
   if (!session) return <Navigate to={`/login?next=${encodeURIComponent(pathname + search)}`} replace />
   if (entitlements(profile).canPresent) return children
-  return <Paywall />
+  return <ChoosePlan />
 }
 
-function Paywall() {
+function ChoosePlan() {
   const navigate = useNavigate()
+  const profile = useAccount((s) => s.profile)
+  const setProfile = useAccount((s) => s.setProfile)
+  const signOut = useAccount((s) => s.signOut)
+  const [checking, setChecking] = useState(false)
+
+  const recheck = async () => {
+    setChecking(true)
+    try {
+      const p = (await syncPayments()) ?? (await useAccount.getState().refresh())
+      if (p) setProfile(p)
+      if (!entitlements(p).canPresent) toast("No payment found yet. If you've just paid, give it a minute and try again.", 'info')
+    } catch (e) {
+      toast(errorMessage(e), 'error')
+    } finally {
+      setChecking(false)
+    }
+  }
+
   return (
-    <div className="dark flex h-full items-center justify-center overflow-y-auto bg-[#08080a] p-6 text-fg">
-      <div className="w-[560px] max-w-full rounded-3xl border border-line-strong bg-elevated p-8 shadow-2xl animate-rise">
-        <div className="flex items-center gap-3">
-          <Logo size={30} />
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-accent">
-            <Lock size={15} />
-          </span>
-        </div>
-        <h2 className="mt-5 text-[22px] font-semibold tracking-tight">Your {TRIAL_DAYS}-day free trial has ended</h2>
-        <p className="mt-2 text-[14px] leading-relaxed text-muted">
-          Your presentations and scripts are safe on this device. Pick a plan to keep presenting with the teleprompter that follows your voice.
-        </p>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-line bg-surface p-4">
-            <div className="text-[14px] font-semibold">Standard · non-SI</div>
-            <div className="mt-1 text-[13px] text-muted">
-              ${PLANS.standard_monthly.price}/month or ${PLANS.standard_yearly.price}/year
-            </div>
-            <div className="mt-3 flex items-center gap-1.5 text-[12.5px] text-success">
-              <Check size={13} /> Unlimited usage
-            </div>
+    <div className="light selectable h-full overflow-y-auto bg-slate-50 text-slate-900 [color-scheme:light]">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-2.5">
+            <Logo size={28} />
+            <span className="text-[15px] font-semibold tracking-tight">{PRODUCT}</span>
           </div>
-          <div className="rounded-2xl border border-accent/40 bg-accent-soft p-4">
-            <div className="flex items-center gap-1.5 text-[14px] font-semibold">
-              <Sparkles size={13} className="text-accent" /> SI
-            </div>
-            <div className="mt-1 text-[13px] text-muted">
-              ${PLANS.si_monthly.price}/month or ${PLANS.si_yearly.price}/year
-            </div>
-            <div className="mt-3 flex items-center gap-1.5 text-[12.5px] text-accent">
-              <Check size={13} /> + AI answers on calls
-            </div>
+          <div className="flex items-center gap-3 text-[13.5px] text-slate-500">
+            <span className="hidden sm:inline">{profile?.email}</span>
+            <button
+              type="button"
+              onClick={async () => {
+                await signOut()
+                navigate(platform.kind === 'web' ? '/' : '/login', { replace: true })
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <LogOut size={14} /> Sign out
+            </button>
           </div>
         </div>
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={() => navigate(HOME)} className="h-10 rounded-xl border border-line px-4 text-[14px] text-muted hover:bg-hover hover:text-fg">
-            Back
+      </header>
+      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <h1 className="text-[30px] leading-tight font-semibold tracking-[-0.025em] sm:text-[36px]">Choose your plan to start</h1>
+          <p className="mt-3 text-[15.5px] leading-relaxed text-slate-600">
+            Your account is ready. Pick <b className="font-semibold text-slate-900">Standard</b> to present with your own script, or{' '}
+            <b className="font-semibold text-slate-900">SI</b> for the AI copilot too. You can start the moment the payment goes through.
+          </p>
+        </div>
+        <div className="mt-4">
+          {/* Stay here after paying: the app opens as soon as the plan is active. */}
+          <PricingTable afterPaid={null} />
+        </div>
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={recheck}
+            disabled={checking}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-[13.5px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {checking ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Already paid? Check again
           </button>
-          <Link to="/account" className="inline-flex h-10 items-center rounded-xl bg-accent px-5 text-[14px] font-medium text-accent-fg hover:brightness-110">
-            Choose a plan
-          </Link>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

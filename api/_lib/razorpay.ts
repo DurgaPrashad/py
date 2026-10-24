@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { db, type PaymentRow } from './db.js'
 import { HttpError, requireEnv } from './http.js'

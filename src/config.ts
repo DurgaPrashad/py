@@ -28,9 +28,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
 
 export const TIER_NAME: Record<Tier, string> = { standard: 'Standard', si: 'SI' }
 
-/** Must match private.settings in the database. */
-export const TRIAL_DAYS = 7
-export const FREE_AI_ANSWERS = 5
+/** Must match private.settings in the database. There is no free trial: presenting needs Standard or SI, AI answers need SI. */
 export const AI_DAILY_LIMIT = 300
 
 export const planFor = (tier: Tier, interval: 'month' | 'year'): PlanId => `${tier}_${interval === 'month' ? 'monthly' : 'yearly'}`

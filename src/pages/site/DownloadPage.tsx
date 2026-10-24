@@ -92,7 +92,7 @@ export function DownloadPage() {
             ) : (
               <>the email you use on this website</>
             )}
-            . Your trial or plan applies in the app straight away, and Settings shows the name and email that are signed in.
+            . Your plan applies in the app straight away, and Settings shows the name and email that are signed in.
           </InstallStep>
           <InstallStep n={4} title="Allow the microphone, download the voice model">
             The first time you present, allow microphone access and download a speech model once (Base · English, 142 MB). Then it works offline.

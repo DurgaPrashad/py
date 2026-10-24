@@ -39,6 +39,8 @@ function Router({ children }: { children: ReactNode }) {
 }
 
 const app = (page: ReactNode) => <RequireAccount>{page}</RequireAccount>
+/** Signed in with a paid plan; otherwise the plan picker (pay, then the page opens). */
+const paid = (page: ReactNode) => app(<RequirePlan>{page}</RequirePlan>)
 
 export function App() {
   const load = useSettings((s) => s.load)
@@ -85,17 +87,10 @@ export function App() {
           <Route path="/reset" element={<AuthPage mode="reset" />} />
           <Route path="/account" element={<AccountPage />} />
 
-          <Route path={HOME} element={app(<HomePage />)} />
-          <Route path="/import" element={app(<ImportPage />)} />
-          <Route path="/edit/:id" element={app(<EditorPage />)} />
-          <Route
-            path="/present/:id"
-            element={app(
-              <RequirePlan>
-                <PresentPage />
-              </RequirePlan>,
-            )}
-          />
+          <Route path={HOME} element={paid(<HomePage />)} />
+          <Route path="/import" element={paid(<ImportPage />)} />
+          <Route path="/edit/:id" element={paid(<EditorPage />)} />
+          <Route path="/present/:id" element={paid(<PresentPage />)} />
           <Route path="/audience/:id" element={<AudiencePage />} />
           <Route path="/settings" element={app(<SettingsPage />)} />
           <Route path="*" element={<Navigate to={HOME} replace />} />

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { AI_DAILY_LIMIT, FREE_AI_ANSWERS, PLANS, PRODUCT, SITE_URL, TRIAL_DAYS } from '../../config'
+import { AI_DAILY_LIMIT, PLANS, PRODUCT, SITE_URL } from '../../config'
 import { PageHeader, SiteShell } from './SiteShell'
 
 const UPDATED = '24 October 2026'
@@ -171,12 +171,9 @@ export function TermsPage() {
         years old, or the age of majority where you live if higher, to buy a plan.
       </p>
 
-      <h2>3. Free trial and plans</h2>
+      <h2>3. Plans</h2>
+      <p>There is no free plan or trial: using the Service requires one of these paid plans.</p>
       <ul>
-        <li>
-          New accounts get a {TRIAL_DAYS}-day free trial of Standard and {FREE_AI_ANSWERS} SI copilot answers. No payment details are needed for the
-          trial.
-        </li>
         <li>
           <strong>Standard (non-SI)</strong> — {price('standard_monthly')} per month or {price('standard_yearly')} per year: the teleprompter for your own
           script, with unlimited usage during the period you paid for.
@@ -319,9 +316,6 @@ export function ShippingPage() {
         <li>
           The <strong>web app</strong> is available right away at <a href={`${SITE_URL}/app`}>{SITE_URL.replace('https://', '')}/app</a>. The{' '}
           <strong>Mac app</strong> can be downloaded from the website at any time.
-        </li>
-        <li>
-          The <strong>free trial</strong> starts as soon as you create an account.
         </li>
       </ul>
 

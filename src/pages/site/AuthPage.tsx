@@ -2,7 +2,7 @@ import { ArrowLeft, Check, Loader2, Mic, MonitorUp, Sparkles } from 'lucide-reac
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../../components/Logo'
-import { FREE_AI_ANSWERS, PRODUCT, SITE_URL, TRIAL_DAYS } from '../../config'
+import { PLANS, PRODUCT, SITE_URL } from '../../config'
 import { useAccount } from '../../features/account/account'
 import { platform } from '../../platform'
 import { supabase } from '../../services/supabase'
@@ -13,7 +13,7 @@ type Mode = 'login' | 'signup' | 'forgot' | 'reset'
 
 const TITLES: Record<Mode, [string, string]> = {
   login: ['Welcome back', 'Sign in to your presentations and plan.'],
-  signup: ['Create your account', `Free for ${TRIAL_DAYS} days. No card needed.`],
+  signup: ['Create your account', 'Then choose a plan and start presenting.'],
   forgot: ['Reset your password', 'We’ll email you a link to choose a new one.'],
   reset: ['Choose a new password', 'Enter it twice and you’re back in.'],
 }
@@ -201,7 +201,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
           <Point icon={<Sparkles size={16} />}>SI suggests answers to the questions you didn’t rehearse</Point>
         </ul>
         <div className="mt-10 flex items-center gap-2 text-[13.5px] text-white/60">
-          <Check size={15} className="text-emerald-400" /> {TRIAL_DAYS}-day free trial · {FREE_AI_ANSWERS} SI answers included
+          <Check size={15} className="text-emerald-400" /> Plans from ${PLANS.standard_monthly.price}/month · no automatic renewal
         </div>
       </aside>
     </div>

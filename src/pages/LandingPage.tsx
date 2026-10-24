@@ -24,7 +24,7 @@ import { Link } from 'react-router-dom'
 import { DEFAULT_SETTINGS } from '../features/settings/defaults'
 import { Teleprompter } from '../features/teleprompter/Teleprompter'
 import { tokenizeScript } from '../services/alignment/normalize'
-import { PLANS, TRIAL_DAYS } from '../config'
+import { PLANS } from '../config'
 import { AnswerText, answerLayout } from '../features/copilot/AnswerText'
 import { PricingTable } from './site/Pricing'
 import { PrimaryLink, SecondaryLink, SiteShell } from './site/SiteShell'
@@ -91,12 +91,12 @@ function Hero() {
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <PrimaryLink to="/signup">
-            Start {TRIAL_DAYS}-day free trial <ArrowRight size={17} />
+            Get started <ArrowRight size={17} />
           </PrimaryLink>
           <DesktopCta />
         </div>
         <p className="mt-4 text-[13px] text-slate-500">
-          No card needed · Works with Google Meet, Zoom and Microsoft Teams ·{' '}
+          Works with Google Meet, Zoom and Microsoft Teams ·{' '}
           <Link to="/pricing" className="font-medium text-slate-700 underline-offset-2 hover:underline">
             Pricing from ${PLANS.standard_monthly.price}/mo
           </Link>
@@ -210,7 +210,7 @@ function DesktopCta() {
       </span>
       <span className="leading-tight">
         <span className="block text-[14.5px] font-semibold">Download for Desktop</span>
-        <span className="block text-[11.5px] text-white/60">macOS · Apple Silicon · free trial</span>
+        <span className="block text-[11.5px] text-white/60">macOS · Apple Silicon</span>
       </span>
     </a>
   )
@@ -495,8 +495,8 @@ const FAQ: [string, string][] = [
     'Chrome or Edge on a computer (or the Mac app) and a microphone. The first time you present, a speech model (~120 MB) is downloaded once and cached.',
   ],
   [
-    'What happens after the free trial?',
-    `Choose Standard ($${PLANS.standard_monthly.price}/month or $${PLANS.standard_yearly.price}/year, unlimited usage) or SI ($${PLANS.si_monthly.price}/month or $${PLANS.si_yearly.price}/year). Plans are prepaid and never renew automatically.`,
+    'How do I start?',
+    `Create an account, then choose Standard ($${PLANS.standard_monthly.price}/month or $${PLANS.standard_yearly.price}/year, unlimited usage) or SI ($${PLANS.si_monthly.price}/month or $${PLANS.si_yearly.price}/year). Plans are prepaid and never renew automatically.`,
   ],
 ]
 
@@ -527,11 +527,11 @@ function FinalCta() {
       <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
         <h2 className="text-[34px] leading-tight font-semibold tracking-[-0.03em] sm:text-[44px]">Your next pitch can feel easy.</h2>
         <p className="mx-auto mt-4 max-w-xl text-[16.5px] leading-relaxed text-white/65">
-          Start your {TRIAL_DAYS}-day free trial in the browser. Bring a deck — you'll be presenting with it in five minutes.
+          Create your account, pick a plan, and bring a deck — you'll be presenting with it in five minutes.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <PrimaryLink to="/signup">
-            Start free trial <ArrowRight size={17} />
+            Get started <ArrowRight size={17} />
           </PrimaryLink>
           <Link to="/pricing" className="inline-flex h-12 items-center rounded-xl border border-white/20 px-6 text-[15px] font-medium text-white hover:bg-white/10">
             Compare plans

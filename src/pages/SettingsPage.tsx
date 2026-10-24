@@ -600,7 +600,7 @@ function SiSection() {
     <>SI plan active — {daysLeft(profile?.si_until ?? null)} days left.</>
   ) : (
     <>
-      {ent.freeAnswersLeft > 0 ? `${ent.freeAnswersLeft} free SI answers left to try. ` : 'Your free SI answers are used up. '}
+      AI answers are part of the SI plan.{' '}
       <Link to="/account?plan=si_monthly" className="font-medium text-accent hover:underline">
         Get SI
       </Link>{' '}
@@ -855,11 +855,11 @@ function AccountCard() {
       </div>
       <span
         className={`mt-2.5 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap ${
-          ent.si ? 'bg-accent-soft text-accent' : ent.standard ? 'bg-hover text-fg' : ent.trial ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'
+          ent.si ? 'bg-accent-soft text-accent' : ent.standard ? 'bg-hover text-fg' : 'bg-danger/15 text-danger'
         }`}
       >
         {ent.planName}
-        {ent.trial && profile ? ` · ${daysLeft(profile.trial_until)} days left` : ''}
+        {ent.si && profile ? ` · ${daysLeft(profile.si_until)} days left` : ent.standard && profile ? ` · ${daysLeft(profile.standard_until)} days left` : ''}
       </span>
       <div className="mt-2.5 flex items-center gap-3 border-t border-line pt-2.5 text-[12px]">
         <Link to="/account" className="text-muted hover:text-fg">

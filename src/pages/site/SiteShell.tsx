@@ -92,7 +92,7 @@ function SiteNav() {
                 Sign in
               </Link>
               <PrimaryLink to="/signup" small>
-                Start free trial
+                Get started
               </PrimaryLink>
             </>
           )}
@@ -114,7 +114,7 @@ function SiteNav() {
             ) : (
               <>
                 <SecondaryLink to="/login">Sign in</SecondaryLink>
-                <PrimaryLink to="/signup">Start free trial</PrimaryLink>
+                <PrimaryLink to="/signup">Get started</PrimaryLink>
               </>
             )}
           </div>

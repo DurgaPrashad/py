@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * POST /api/checkout  { plan }  ->  a Razorpay order for Checkout.
  * Prices come from the database (private.plans), never from the client.

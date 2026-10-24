@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../../components/Logo'
 import { toast } from '../../components/Toast'
-import { FREE_AI_ANSWERS, PLANS, PRODUCT, SITE_URL, TIER_NAME, type PlanId } from '../../config'
+import { PLANS, PRODUCT, SITE_URL, TIER_NAME, type PlanId } from '../../config'
 import { daysLeft, entitlements, useAccount, type Payment } from '../../features/account/account'
 import { syncPayments } from '../../features/account/checkout'
 import { platform } from '../../platform'
@@ -73,12 +73,8 @@ export function AccountPage() {
     <>
       <b>Standard</b> is active until <b>{fmtDate(profile.standard_until)}</b> ({daysLeft(profile.standard_until)} days left).
     </>
-  ) : ent.trial ? (
-    <>
-      Your <b>free trial</b> ends on <b>{fmtDate(profile.trial_until)}</b> ({daysLeft(profile.trial_until)} days left).
-    </>
   ) : (
-    <>Your free trial has ended. Choose a plan to keep presenting.</>
+    <>No plan yet. Choose Standard or SI below — you can start as soon as the payment goes through.</>
   )
 
   return (
@@ -127,7 +123,7 @@ export function AccountPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <span
                   className={`rounded-full px-3 py-1 text-[13px] font-semibold ${
-                    ent.si ? 'bg-orange-100 text-orange-800' : ent.standard ? 'bg-slate-900 text-white' : ent.trial ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
+                    ent.si ? 'bg-orange-100 text-orange-800' : ent.standard ? 'bg-slate-900 text-white' : 'bg-amber-100 text-amber-800'
                   }`}
                 >
                   {ent.planName}
@@ -138,7 +134,7 @@ export function AccountPage() {
                 <p className="mt-2 text-[13.5px] text-slate-500">Standard continues after SI ends, until {fmtDate(profile.standard_until)}.</p>
               )}
               <p className="mt-3 text-[13.5px] text-slate-500">
-                {ent.si ? 'SI copilot answers: up to 300 a day.' : `SI copilot answers to try: ${ent.freeAnswersLeft} of ${FREE_AI_ANSWERS} left.`}
+                {ent.si ? 'SI copilot answers: up to 300 a day with the built-in AI.' : 'AI answers on calls come with the SI plan.'}
               </p>
             </>
           )}

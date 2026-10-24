@@ -17,15 +17,14 @@ The hosted site (https://present.waspid.com) has accounts and paid plans; everyt
 
 | Plan | Price | What it unlocks |
 | --- | --- | --- |
-| Free trial | 7 days | Standard + 5 SI answers |
 | **Standard** (non-SI) | $4 / month · $24 / year | Presenting with the teleprompter, unlimited usage |
 | **SI** (Super Intelligence) | $9 / month · $69 / year | Standard + the AI copilot (up to 300 answers a day); SI yearly also unlocks uploading files as sources |
 
-Plans are prepaid (Razorpay Orders, USD) and never renew automatically.
+There is no free plan or trial: after signing up, the app shows a plan picker and opens as soon as the payment goes through. Plans are prepaid (Razorpay Orders, USD) and never renew automatically.
 
 - **Server functions** (`api/`, Vercel): `checkout` (Razorpay order; price from `private.plans`), `verify-payment` (HMAC signature → payment confirmed with Razorpay → captured if needed → `private.grant_plan`), `sync-payments` (applies paid orders whose confirmation was missed), `razorpay-webhook` (same, from Razorpay's side), and `copilot` (the built-in AI: checks the plan with `claim_copilot_use`, then streams Claude's answer). `npm run dev` serves them locally with `.env.local`.
 - **Schema:** `supabase/migrations/` — profiles (one per account), payments, contact messages, `create_account`, `claim_copilot_use`, `grant_plan`. Apply with `psql -f` or the Supabase SQL editor.
-- **Environment variables** — set them in Vercel → *Settings → Environment Variables* (and in `.env.local` for local runs; see `.env.example`). Nothing secret is in the repo or the browser.
+- **Environment variables** — set them in Vercel → *Settings → Environment Variables* for **Production** (and in `.env.local` for local runs; see `.env.example`), then redeploy. Open `/api/health` to check: it shows, as yes/no, which settings are present and whether Razorpay and the database answer. Nothing secret is in the repo or the browser.
 
   | Variable | Needed for | Where to get it |
   | --- | --- | --- |

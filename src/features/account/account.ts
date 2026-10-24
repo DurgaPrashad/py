@@ -1,6 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
 import { create } from 'zustand'
-import { FREE_AI_ANSWERS } from '../../config'
 import { supabase, supabaseMessage } from '../../services/supabase'
 
 /** public.profiles — one row per account. */
@@ -104,20 +103,16 @@ const after = (iso: string | null) => (iso ? Date.parse(iso) > Date.now() : fals
 export function entitlements(p: Profile | null) {
   const si = after(p?.si_until ?? null)
   const standard = si || after(p?.standard_until ?? null)
-  const trial = !standard && after(p?.trial_until ?? null)
-  const freeAnswersLeft = si ? Infinity : Math.max(0, FREE_AI_ANSWERS - (p?.ai_answers_used ?? 0))
   return {
     si,
     standard,
-    trial,
-    /** Present with the voice-following teleprompter. */
-    canPresent: standard || trial,
-    /** Ask the AI copilot (SI, or the free SI answers). */
-    canAsk: si || freeAnswersLeft > 0,
+    /** Use the app and present with the voice-following teleprompter (Standard or SI). */
+    canPresent: standard,
+    /** Ask the AI copilot (SI). */
+    canAsk: si,
     /** Upload PDFs / documents as SI sources (SI yearly plan). */
     canUploadSources: after(p?.si_yearly_until ?? null),
-    freeAnswersLeft,
-    planName: si ? 'SI' : standard ? 'Standard' : trial ? 'Free trial' : 'No active plan',
+    planName: si ? 'SI' : standard ? 'Standard' : 'No plan yet',
   }
 }
 

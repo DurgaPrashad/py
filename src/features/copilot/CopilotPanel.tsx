@@ -96,10 +96,10 @@ export function CopilotPanel({ copilot, script, variant, onClose }: { copilot: C
             ))}
           </div>
           <div className="flex-1" />
-          {session && profile && (
+          {ent.si && (
             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap text-accent" title="SI — Super Intelligence">
               <Sparkles size={10} className="mr-0.5 inline -translate-y-px" />
-              {ent.si ? 'SI' : `${ent.freeAnswersLeft} free`}
+              SI
             </span>
           )}
           {!compact && (

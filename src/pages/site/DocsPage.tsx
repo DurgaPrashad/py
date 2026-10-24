@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { AI_DAILY_LIMIT, FREE_AI_ANSWERS, PLANS, PRODUCT, TRIAL_DAYS } from '../../config'
+import { AI_DAILY_LIMIT, PLANS, PRODUCT } from '../../config'
 import { PageHeader, SiteShell } from './SiteShell'
 
 const TOC: [string, string][] = [
@@ -52,8 +52,8 @@ export function DocsPage() {
           <Doc id="getting-started" title="Getting started">
             <ol>
               <li>
-                <Link to="/signup" className="link">Create an account</Link> with your email and a password. You get a {TRIAL_DAYS}-day free trial and{' '}
-                {FREE_AI_ANSWERS} SI copilot answers — no card needed.
+                <Link to="/signup" className="link">Create an account</Link> with your email and a password, then choose{' '}
+                <strong>Standard</strong> or <strong>SI</strong> and pay with Razorpay. The app opens as soon as the payment goes through.
               </li>
               <li>
                 Open the <Link to="/app" className="link">web app</Link> in <strong>Chrome or Edge</strong> on a computer (or install the{' '}
@@ -214,7 +214,7 @@ export function DocsPage() {
                 in the editor.
               </li>
               <li>
-                <strong>Add text</strong>: paste or type notes and facts. Included with SI (and the trial).
+                <strong>Add text</strong>: paste or type notes and facts. Included with SI.
               </li>
               <li>
                 <strong>Upload files</strong>: PDF, Word (.docx), text, Markdown and CSV. Uploading files is part of the{' '}
@@ -247,9 +247,6 @@ export function DocsPage() {
           <Doc id="plans" title="Plans & billing">
             <ul>
               <li>
-                <strong>Free trial</strong> — {TRIAL_DAYS} days of Standard plus {FREE_AI_ANSWERS} SI answers.
-              </li>
-              <li>
                 <strong>Standard (non-SI)</strong> — ${PLANS.standard_monthly.price}/month or ${PLANS.standard_yearly.price}/year. The teleprompter for
                 your own script, unlimited usage.
               </li>
@@ -268,7 +265,7 @@ export function DocsPage() {
             <p>
               The <Link to="/download" className="link">Mac app</Link> (Apple Silicon) runs speech recognition with Metal, works offline after a one-time
               model download, presents on a second display, and opens legacy <code>.ppt</code> files. Sign in with the <strong>same email</strong> you use
-              on the website — your trial or plan applies there automatically, and <em>Settings</em> shows the name and email that are signed in.
+              on the website — your plan applies there automatically, and <em>Settings</em> shows the name and email that are signed in.
             </p>
           </Doc>
 
