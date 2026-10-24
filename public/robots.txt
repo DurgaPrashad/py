@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /edit/
+Disallow: /present/
+Disallow: /import
+Disallow: /settings
+Disallow: /account
+Disallow: /reset
+
+Sitemap: https://present.waspid.com/sitemap.xml

@@ -260,25 +260,40 @@ function StatBand() {
   return (
     <section className="border-y border-slate-200 bg-slate-950 text-white">
       <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 md:gap-16">
-        <Stat value="70–77%" title="of people feel nervous, anxious or physically uncomfortable when they present.">
+        <Stat value="#1" title="Speaking in front of a group topped the list of fears in a survey of 2,543 American adults." source="R. H. Bruskin Associates survey, 1973">
           On an investor or client call, that's exactly when your deck has to carry you — the line you forget, the number you blank on, the question you
           didn't see coming.
         </Stat>
-        <Stat value="95%" title="of startups now use AI to prepare and present their pitch.">
-          AI already writes the deck and the speaker notes. Present brings it into the room: your script follows your voice, and SI answers with you when
-          the questions start.
+        <Stat
+          value="60%"
+          title="of founders who started a business in 2025 used AI to help launch it — up from 21% in 2023."
+          source="Gusto, New Business Formation Report, 2026"
+          href="https://gusto.com/resources/gusto-insights/new-business-formation-2026"
+        >
+          AI already helps write the deck and the speaker notes. Present brings it into the room: your script follows your voice, and SI answers with you
+          when the questions start.
         </Stat>
       </div>
     </section>
   )
 }
 
-function Stat({ value, title, children }: { value: string; title: string; children: ReactNode }) {
+function Stat({ value, title, source, href, children }: { value: string; title: string; source: string; href?: string; children: ReactNode }) {
   return (
     <div>
       <div className="text-[60px] leading-none font-semibold tracking-[-0.04em] text-orange-400 sm:text-[76px]">{value}</div>
       <p className="mt-4 text-[19px] leading-snug font-medium tracking-tight sm:text-[21px]">{title}</p>
       <p className="mt-3 text-[15px] leading-relaxed text-white/65">{children}</p>
+      <p className="mt-3 text-[12px] text-white/40">
+        Source:{' '}
+        {href ? (
+          <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-white/70">
+            {source}
+          </a>
+        ) : (
+          source
+        )}
+      </p>
     </div>
   )
 }

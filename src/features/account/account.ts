@@ -86,6 +86,7 @@ export const useAccount = create<AccountState>((set, get) => ({
       profile.yearly_until = (pays?.[0] as { period_end?: string } | undefined)?.period_end ?? null
     }
     set({ profile })
+    void recoverPendingPayment(profile)
     return profile
   },
 
@@ -112,6 +113,27 @@ export const useAccount = create<AccountState>((set, get) => ({
     set({ profile: null, session: null })
   },
 }))
+
+/**
+ * A payment can go through while its confirmation never reaches us (the tab
+ * closed mid-checkout). Once per session, if the account has a recent order
+ * that isn't marked paid yet, ask the server to check it with Razorpay.
+ */
+let recoveryChecked = false
+async function recoverPendingPayment(profile: Profile | null) {
+  if (!profile || recoveryChecked) return
+  recoveryChecked = true
+  const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
+  const { data } = await supabase.from('payments').select('id').eq('status', 'created').gte('created_at', since).limit(1)
+  if (!data?.length) return
+  try {
+    const { syncPayments } = await import('./checkout')
+    const synced = await syncPayments()
+    if (synced) useAccount.getState().setProfile(synced)
+  } catch {
+    // Not reachable right now; the account page and the plan picker check again.
+  }
+}
 
 const after = (iso: string | null | undefined) => (iso ? Date.parse(iso) > Date.now() : false)
 
