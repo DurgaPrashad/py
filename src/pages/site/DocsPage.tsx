@@ -13,6 +13,7 @@ const TOC: [string, string][] = [
   ['calls', 'Present on a call'],
   ['second-display', 'Second display'],
   ['si-copilot', 'SI copilot'],
+  ['sources', 'Sources'],
   ['ai-providers', 'AI providers & API keys'],
   ['plans', 'Plans & billing'],
   ['mac-app', 'Mac app'],
@@ -105,7 +106,7 @@ export function DocsPage() {
 
           <Doc id="teleprompter" title="The teleprompter">
             <p>
-              While you present, Reflex listens on your device and highlights each word as you say it, moving the text along at your pace. Pauses, fillers
+              While you present, Present listens on your device and highlights each word as you say it, moving the text along at your pace. Pauses, fillers
               (“um”, “like”), repeats and skipped words don't throw it off.
             </p>
             <p>
@@ -114,7 +115,7 @@ export function DocsPage() {
               <em>Settings → Teleprompter</em>.
             </p>
             <p>
-              Also in Settings: words visible (4–14), font size, width, background opacity, text speed, alignment, highlight style (pill, underline,
+              Text moves as fast as possible by default; slow it down with <em>Text speed</em>. Also in Settings: words visible (4–14), font size, width, background opacity (the black bar's transparency), alignment, highlight style (pill, underline,
               colour, bold), highlighting the word just spoken or the next word, dimming spoken words, uppercase, and a live transcript line.
             </p>
           </Doc>
@@ -154,11 +155,11 @@ export function DocsPage() {
             <ul>
               <li>
                 <strong>Browser:</strong> click <strong>Start</strong>. The teleprompter — and the SI copilot, if switched on — pops out into a small floating
-                window you can place under your camera. The tab shows only the deck: in Meet choose <em>Share screen → A tab</em> and pick the Reflex tab
+                window you can place under your camera. The tab shows only the deck: in Meet choose <em>Share screen → A tab</em> and pick the Present tab
                 (Zoom/Teams: share that browser tab).
               </li>
               <li>
-                <strong>Mac app:</strong> the slides fill the screen in a window called <em>Reflex — Slides (share this window)</em>; share that window.
+                <strong>Mac app:</strong> the slides fill the screen in a window called <em>Present — Slides (share this window)</em>; share that window.
               </li>
             </ul>
             <p>
@@ -177,7 +178,7 @@ export function DocsPage() {
 
           <Doc id="si-copilot" title="SI copilot">
             <p>
-              SI (Smart Intelligence) suggests answers to the questions people ask you on a call, using only your deck, scripts, notes and Q&A prep notes. It
+              SI (Super Intelligence) is the agent at your side: it suggests answers to the questions people ask you on a call, using only your deck, scripts, notes, Q&A prep notes and sources. It
               never invents numbers: if your material doesn't cover a question, it says so and suggests an honest follow-up.
             </p>
             <ol>
@@ -195,9 +196,32 @@ export function DocsPage() {
               <li>You can also type any question at any time.</li>
             </ol>
             <p>
-              In call mode the copilot appears in the floating teleprompter window, so it's never part of the tab you share. In the Mac app you can type
+              The copilot appears as a small box right under the top text bar (or as a side panel). Its text size, width and black-background
+              transparency are adjustable in <em>Settings → SI copilot</em>. In call mode it appears in the floating teleprompter window, so it's never part
+              of the tab you share. In the Mac app you can type
               questions; listening to call audio needs the web app.
             </p>
+          </Doc>
+
+          <Doc id="sources" title="Sources">
+            <p>
+              Sources are what you're explaining beyond the slides — product details, FAQs, financials, research, your own notes. SI (Super
+              Intelligence) uses them, with your slides and scripts, to tell you what to say.
+            </p>
+            <ul>
+              <li>
+                On the Presentations page, hover a presentation and click <strong>+</strong> (in front of <em>Edit</em>), or click <strong>Sources</strong>{' '}
+                in the editor.
+              </li>
+              <li>
+                <strong>Add text</strong>: paste or type notes and facts. Included with SI (and the trial).
+              </li>
+              <li>
+                <strong>Upload files</strong>: PDF, Word (.docx), text, Markdown and CSV. Uploading files is part of the{' '}
+                <strong>SI yearly plan (${PLANS.si_yearly.price}/year)</strong>.
+              </li>
+              <li>Files are read on your device; only their text is kept, with the presentation. SI reads up to about 300,000 characters per question.</li>
+            </ul>
           </Doc>
 
           <Doc id="ai-providers" title="AI providers & API keys">

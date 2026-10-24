@@ -11,6 +11,8 @@ export interface Profile {
   trial_until: string | null
   standard_until: string | null
   si_until: string | null
+  /** SI yearly plan: unlocks uploading files as sources. */
+  si_yearly_until: string | null
   ai_answers_used: number
   created_at: string
 }
@@ -112,6 +114,8 @@ export function entitlements(p: Profile | null) {
     canPresent: standard || trial,
     /** Ask the AI copilot (SI, or the free SI answers). */
     canAsk: si || freeAnswersLeft > 0,
+    /** Upload PDFs / documents as SI sources (SI yearly plan). */
+    canUploadSources: after(p?.si_yearly_until ?? null),
     freeAnswersLeft,
     planName: si ? 'SI' : standard ? 'Standard' : trial ? 'Free trial' : 'No active plan',
   }

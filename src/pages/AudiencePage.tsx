@@ -20,7 +20,7 @@ export function AudiencePage() {
   }, [id])
 
   useEffect(() => {
-    document.title = 'Reflex — Slides'
+    document.title = 'Present — Slides'
     const off = platform.audience.onSlide(setIndex)
     // Give the listener a moment to register before asking for the slide.
     const t = setTimeout(() => platform.audience.ready(), 150)

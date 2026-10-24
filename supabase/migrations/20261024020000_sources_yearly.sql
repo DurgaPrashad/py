@@ -1,0 +1,179 @@
+-- Sources: presenters attach material for SI (Super Intelligence) to use.
+-- Typed text sources come with SI; uploading files (PDF, Word, text) is part
+-- of the SI yearly plan, tracked as profiles.si_yearly_until.
+-- The copilot context grows to fit sources (400k characters).
+
+alter table public.profiles add column if not exists si_yearly_until timestamptz;
+
+-- Same as before, plus: an SI yearly payment extends si_yearly_until.
+create or replace function private.grant_plan(p_payment uuid, p_razorpay_payment_id text)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_pay public.payments;
+  v_plan private.plans;
+  v_period interval;
+  v_start timestamptz;
+begin
+  select * into v_pay from public.payments where id = p_payment for update;
+  if v_pay.status = 'paid' then return; end if;
+  select * into v_plan from private.plans where id = v_pay.plan;
+  v_period := v_plan.period;
+  select greatest(coalesce(case when v_plan.tier = 'si' then si_until else standard_until end, now()), now())
+    into v_start from public.profiles where id = v_pay.user_id for update;
+  if v_plan.tier = 'si' then
+    update public.profiles set si_until = v_start + v_period, updated_at = now() where id = v_pay.user_id;
+  else
+    update public.profiles set standard_until = v_start + v_period, updated_at = now() where id = v_pay.user_id;
+  end if;
+  if v_plan.id = 'si_yearly' then
+    update public.profiles
+      set si_yearly_until = greatest(coalesce(si_yearly_until, now()), now()) + v_period
+      where id = v_pay.user_id;
+  end if;
+  update public.payments
+    set status = 'paid', razorpay_payment_id = p_razorpay_payment_id, paid_at = now(),
+        period_start = v_start, period_end = v_start + v_period
+    where id = p_payment;
+end
+$$;
+
+revoke execute on function private.grant_plan(uuid, text) from public, anon, authenticated;
+
+-- Existing SI yearly payments.
+update public.profiles p
+set si_yearly_until = x.until
+from (
+  select user_id, max(period_end) as until from public.payments
+  where status = 'paid' and plan = 'si_yearly' group by user_id
+) x
+where x.user_id = p.id and (p.si_yearly_until is null or p.si_yearly_until < x.until);
+
+-- ask_copilot: identical to 20261024010000 except the larger context.
+create or replace function public.ask_copilot(p_question text, p_context text, p_mode text default 'answer', p_style text default null)
+returns jsonb
+language plpgsql security definer set search_path = ''
+set statement_timeout = '45s'
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_profile public.profiles;
+  v_si boolean;
+  v_free integer := private.setting('ai_free_answers')::integer;
+  v_key text := private.secret('anthropic_api_key');
+  v_system text;
+  v_body jsonb;
+  v_res extensions.http_response;
+  v_json jsonb;
+  v_text text;
+begin
+  if v_user is null then
+    raise exception 'Sign in to use the AI copilot.' using errcode = '28000';
+  end if;
+  if p_mode not in ('answer', 'script') then
+    raise exception 'Unknown mode.' using errcode = '22023';
+  end if;
+  if length(trim(coalesce(p_question, ''))) = 0 then
+    raise exception 'Nothing to answer.' using errcode = '22023';
+  end if;
+  select * into v_profile from public.profiles where id = v_user for update;
+  v_si := coalesce(v_profile.si_until > now(), false);
+  if not v_si and v_profile.ai_answers_used >= v_free then
+    raise exception 'SI_REQUIRED: AI answers are part of the SI plan. Upgrade to SI to keep using the copilot.' using errcode = 'P0001';
+  end if;
+  if (select count(*) from private.ai_requests where user_id = v_user and mode in ('answer', 'script') and created_at > now() - interval '1 day')
+     >= private.setting('ai_daily_limit')::integer then
+    raise exception 'Daily AI limit reached. It resets within 24 hours, or add your own API key in Settings → SI.' using errcode = 'P0001';
+  end if;
+  if v_key is null then
+    raise exception 'AI_NOT_CONFIGURED: The built-in AI isn''t switched on yet. Add your own API key in Settings → SI.' using errcode = 'P0001';
+  end if;
+
+  if p_mode = 'answer' then
+    v_system := 'You are a live Q&A copilot for someone presenting on a video call - an investor pitch, a client demo, a webinar or an interview. '
+      || 'Someone on the call has just asked a question. Using only the presenter''s material (deck text, speaking scripts, notes, prep notes and sources), '
+      || 'write what the presenter could say back.' || E'\n\n'
+      || 'How to answer:' || E'\n'
+      || '- Speak as the presenter, in the first person, in plain spoken language.' || E'\n'
+      || '- Start with a one-sentence direct answer, then at most three short lines that each begin with "• " and carry the specifics (numbers, names, examples) from the material.' || E'\n'
+      || '- Keep the whole answer under 90 words so it can be read at a glance mid-conversation.' || E'\n'
+      || '- Never invent facts, figures, customers or claims that are not in the material. If the material does not cover the question, say so in one line and suggest an honest reply, such as offering to follow up with the details.' || E'\n'
+      || '- The question was transcribed from speech and may contain recognition errors; answer the question that was most likely meant.' || E'\n'
+      || '- Output only the answer text: no preamble, no headings, no markdown other than the "• " bullets.';
+  else
+    v_system := 'You write speaking scripts for presentation slides. Given the deck context and one slide''s text, write what the presenter should say for that slide: '
+      || 'natural spoken sentences (not bullets), first person, 50 to 110 words, confident and specific, using only facts from the material. '
+      || 'Output only the script text.';
+  end if;
+  if length(trim(coalesce(p_style, ''))) > 0 then
+    v_system := v_system || E'\n\n' || 'The presenter''s preferences (they override the length guidance above, never the rule against inventing facts):' || E'\n' || left(p_style, 2000);
+  end if;
+
+  v_body := jsonb_build_object(
+    'model', private.setting('ai_model'),
+    'max_tokens', 2000,
+    'output_config', jsonb_build_object('effort', private.setting('ai_effort')),
+    'fallbacks', 'default',
+    'system', v_system,
+    'messages', jsonb_build_array(jsonb_build_object(
+      'role', 'user',
+      'content', jsonb_build_array(
+        jsonb_build_object('type', 'text', 'text', '<material>' || E'\n' || left(coalesce(p_context, ''), 400000) || E'\n' || '</material>',
+                           'cache_control', jsonb_build_object('type', 'ephemeral')),
+        jsonb_build_object('type', 'text', 'text',
+          case when p_mode = 'answer' then '<question>' || left(p_question, 2000) || '</question>'
+               else '<slide>' || left(p_question, 8000) || '</slide>' end)
+      )
+    ))
+  );
+
+  perform extensions.http_set_curlopt('CURLOPT_TIMEOUT_MS', '40000');
+  v_res := extensions.http((
+    'POST',
+    'https://api.anthropic.com/v1/messages',
+    array[
+      extensions.http_header('x-api-key', v_key),
+      extensions.http_header('anthropic-version', '2026-10-21'),
+      extensions.http_header('anthropic-beta', 'server-side-fallback-2026-07-01')
+    ],
+    'application/json',
+    v_body::text
+  )::extensions.http_request);
+
+  begin
+    v_json := v_res.content::jsonb;
+  exception when others then
+    v_json := '{}'::jsonb;
+  end;
+
+  if v_res.status <> 200 then
+    insert into private.ai_requests (user_id, mode, ok) values (v_user, p_mode, false);
+    raise exception 'The AI service is unavailable right now (%). Try again in a moment.', coalesce(v_json #>> '{error,message}', v_res.status::text) using errcode = 'P0001';
+  end if;
+
+  select string_agg(block ->> 'text', '' order by ord) into v_text
+  from jsonb_array_elements(v_json -> 'content') with ordinality as t(block, ord)
+  where block ->> 'type' = 'text';
+
+  insert into private.ai_requests (user_id, mode, ok, input_tokens, output_tokens)
+  values (v_user, p_mode, v_json ->> 'stop_reason' <> 'refusal',
+          (v_json #>> '{usage,input_tokens}')::integer, (v_json #>> '{usage,output_tokens}')::integer);
+
+  if v_json ->> 'stop_reason' = 'refusal' or coalesce(trim(v_text), '') = '' then
+    raise exception 'No answer was generated for this one. Try rephrasing the question.' using errcode = 'P0001';
+  end if;
+
+  if not v_si then
+    update public.profiles set ai_answers_used = ai_answers_used + 1, updated_at = now() where id = v_user;
+  end if;
+
+  return jsonb_build_object(
+    'text', trim(v_text),
+    'si', v_si,
+    'free_left', case when v_si then null else greatest(0, v_free - v_profile.ai_answers_used - 1) end
+  );
+end
+$$;
+
+revoke execute on function public.ask_copilot(text, text, text, text) from public, anon;
+grant execute on function public.ask_copilot(text, text, text, text) to authenticated;

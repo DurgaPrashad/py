@@ -15,18 +15,21 @@ function openSite(path: string) {
 }
 
 /**
- * The SI copilot: listens to the call, shows detected questions and suggested
- * answers. `side` is a panel beside the slide; `strip` fits under the floating
- * teleprompter (only the latest answer).
+ * The SI (Super Intelligence) copilot: listens to the call, shows detected
+ * questions and suggested answers. `side` is a full panel beside the slide;
+ * `top` is a compact box under the top text bar; `strip` fits under the
+ * floating teleprompter (latest answer only). Text size comes from Settings → SI.
  */
-export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; variant: 'side' | 'strip'; onClose?: () => void }) {
+export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; variant: 'side' | 'top' | 'strip'; onClose?: () => void }) {
   const session = useAccount((s) => s.session)
   const profile = useAccount((s) => s.profile)
   const ent = entitlements(profile)
   const provider = useSettings((s) => s.settings.si.provider)
   const model = useSettings((s) => (s.settings.si.provider === 'reflex' ? '' : s.settings.si.models[s.settings.si.provider]))
+  const textSize = useSettings((s) => s.settings.si.textSize)
   const [draft, setDraft] = useState('')
   const strip = variant === 'strip'
+  const compact = variant !== 'side'
   const { listen, caption, items } = copilot
   const shown = strip ? items.slice(0, 1) : items
 
@@ -52,7 +55,7 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
         </span>
       )}
       {!strip && (
-        <IconButton label="SI settings — choose the AI and API key" size="sm" onClick={() => openSite('/settings#si')}>
+        <IconButton label="SI settings — AI provider, text size, transparency" size="sm" onClick={() => openSite('/settings#si')}>
           <Settings2 size={13} />
         </IconButton>
       )}
@@ -71,9 +74,11 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
 
   if (!session) {
     return (
-      <Shell strip={strip}>
+      <Shell variant={variant}>
         {header}
-        <p className="mt-3 text-[12.5px] leading-relaxed text-muted">Sign in to use the SI copilot — it suggests answers to questions asked on your call.</p>
+        <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
+          Sign in to use SI — Super Intelligence suggests answers to the questions asked on your call.
+        </p>
         <Button size="sm" variant="primary" className="mt-3 self-start" onClick={() => openSite('/login')}>
           Sign in
         </Button>
@@ -96,7 +101,7 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
       <div className="flex flex-col gap-1.5">
         <Button
           size="sm"
-          variant={strip ? 'secondary' : 'primary'}
+          variant={compact ? 'secondary' : 'primary'}
           icon={listen.state === 'starting' ? <Loader2 size={13} className="animate-spin" /> : <Headphones size={13} />}
           disabled={listen.state === 'starting' || !ent.canAsk}
           onClick={() => void copilot.startListening()}
@@ -107,7 +112,7 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
         {listen.state === 'error' ? (
           <p className="text-[11.5px] leading-snug text-danger">{listen.message}</p>
         ) : (
-          !strip && (
+          !compact && (
             <p className="text-[11.5px] leading-snug text-subtle">
               Pick the tab your Meet, Zoom or Teams call is in and switch on <span className="text-muted">“Also share tab audio”</span>. Audio is
               transcribed on this computer.
@@ -118,7 +123,7 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
     )
 
   return (
-    <Shell strip={strip}>
+    <Shell variant={variant}>
       {header}
       {!ent.canAsk ? (
         <div className="mt-3 rounded-xl border border-accent/30 bg-accent-soft p-3">
@@ -128,9 +133,9 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
           </Button>
         </div>
       ) : (
-        <div className={`flex shrink-0 flex-col gap-2 ${strip ? 'mt-1.5' : 'mt-3'}`}>
+        <div className={`flex shrink-0 flex-col gap-2 ${compact ? 'mt-1.5' : 'mt-3'}`}>
           {listenRow}
-          {!strip && (
+          {!compact && (
             <label className="flex items-center gap-2 text-[11.5px] text-muted">
               <Toggle checked={copilot.autoAnswer} onChange={copilot.setAutoAnswer} label="Answer detected questions automatically" />
               Answer detected questions automatically
@@ -139,14 +144,14 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
         </div>
       )}
 
-      <div className={`min-h-0 flex-1 overflow-y-auto ${strip ? 'mt-1.5' : 'mt-3'} flex flex-col gap-2.5`}>
+      <div className={`min-h-0 flex-1 overflow-y-auto ${compact ? 'mt-1.5' : 'mt-3'} flex flex-col gap-2`}>
         {shown.length === 0 && !strip && (
-          <p className="py-6 text-center text-[12px] leading-relaxed text-subtle">
-            Questions you type or hear on the call appear here with a suggested answer from your deck and Q&A prep notes.
+          <p className={`text-center text-[12px] leading-relaxed text-subtle ${compact ? 'py-2' : 'py-6'}`}>
+            Questions you type or hear on the call appear here with a suggested answer from your deck, notes and sources.
           </p>
         )}
         {shown.map((q) => (
-          <Card key={q.id} q={q} strip={strip} onAnswer={() => copilot.answerItem(q)} />
+          <Card key={q.id} q={q} compact={compact} textSize={textSize} onAnswer={() => copilot.answerItem(q)} />
         ))}
       </div>
 
@@ -162,7 +167,7 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Type a question…"
-            className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-app px-2.5 text-[12.5px] text-fg outline-none placeholder:text-subtle focus:border-accent/60"
+            className="h-8 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 text-[12.5px] text-fg outline-none placeholder:text-subtle focus:border-accent/60"
           />
           <IconButton label="Ask" size="sm" disabled={!draft.trim()} onClick={submit}>
             <Send size={13} />
@@ -173,32 +178,30 @@ export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; 
   )
 }
 
-function Shell({ strip, children }: { strip: boolean; children: React.ReactNode }) {
-  return (
-    <div className={`selectable flex h-full min-h-0 flex-col text-fg ${strip ? 'px-3 pb-2' : 'p-4'}`}>
-      {children}
-    </div>
-  )
+function Shell({ variant, children }: { variant: 'side' | 'top' | 'strip'; children: React.ReactNode }) {
+  const pad = variant === 'side' ? 'p-4' : variant === 'top' ? 'px-3.5 py-2.5' : 'px-3 pb-2'
+  return <div className={`selectable flex h-full min-h-0 flex-col text-fg ${pad}`}>{children}</div>
 }
 
-function Card({ q, strip, onAnswer }: { q: QA; strip: boolean; onAnswer: () => void }) {
+function Card({ q, compact, textSize, onAnswer }: { q: QA; compact: boolean; textSize: number; onAnswer: () => void }) {
+  const answerStyle = { fontSize: textSize, lineHeight: 1.55 }
   return (
-    <div className={`rounded-xl border border-line bg-surface/80 ${strip ? 'px-3 py-2' : 'px-3.5 py-3'} animate-rise`}>
-      <div className="flex items-start gap-1.5 text-[11.5px] leading-snug text-subtle">
+    <div className={`rounded-xl border border-white/[0.08] bg-white/[0.04] ${compact ? 'px-3 py-2' : 'px-3.5 py-3'} animate-rise`}>
+      <div className="flex items-start gap-1.5 leading-snug text-subtle" style={{ fontSize: Math.max(10.5, textSize - 2) }}>
         {q.source === 'call' ? <Headphones size={11} className="mt-0.5 shrink-0" /> : <Keyboard size={11} className="mt-0.5 shrink-0" />}
-        <span className={strip ? 'line-clamp-1' : 'line-clamp-3'}>{q.question}</span>
+        <span className={compact ? 'line-clamp-2' : 'line-clamp-3'}>{q.question}</span>
       </div>
       {q.status === 'answering' && q.answer ? (
-        <p className={`mt-1.5 leading-relaxed whitespace-pre-line text-fg ${strip ? 'text-[14px]' : 'text-[14.5px]'}`}>
+        <p className="mt-1 whitespace-pre-line text-fg" style={answerStyle}>
           {q.answer}
           <span className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] bg-accent animate-pulse-dot" />
         </p>
       ) : q.status === 'answering' ? (
-        <div className="mt-2 flex items-center gap-2 text-[12.5px] text-muted">
+        <div className="mt-1.5 flex items-center gap-2 text-[12.5px] text-muted">
           <Loader2 size={13} className="animate-spin text-accent" /> Writing an answer…
         </div>
       ) : q.status === 'error' ? (
-        <div className="mt-2 flex items-start gap-2">
+        <div className="mt-1.5 flex items-start gap-2">
           <p className="flex-1 text-[12.5px] leading-snug text-danger">{q.error}</p>
           {q.code === 'SI_REQUIRED' ? (
             <Button size="sm" variant="primary" onClick={() => openSite('/account?plan=si_monthly')}>
@@ -216,11 +219,13 @@ function Card({ q, strip, onAnswer }: { q: QA; strip: boolean; onAnswer: () => v
         </div>
       ) : q.answer ? (
         <div className="group/answer relative">
-          <p className={`mt-1.5 leading-relaxed whitespace-pre-line text-fg ${strip ? 'text-[14px]' : 'pr-6 text-[14.5px]'}`}>{q.answer}</p>
-          {!strip && <CopyButton text={q.answer} />}
+          <p className="mt-1 pr-6 whitespace-pre-line text-fg" style={answerStyle}>
+            {q.answer}
+          </p>
+          <CopyButton text={q.answer} />
         </div>
       ) : (
-        <Button size="sm" className="mt-2" onClick={onAnswer}>
+        <Button size="sm" className="mt-1.5" onClick={onAnswer}>
           Suggest an answer
         </Button>
       )}

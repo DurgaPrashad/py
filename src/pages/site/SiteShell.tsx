@@ -22,7 +22,7 @@ export function SiteShell({ children, title }: { children: ReactNode; title?: st
   const { pathname, hash } = useLocation()
 
   useEffect(() => {
-    document.title = title ? `${title} · ${PRODUCT}` : `${PRODUCT} — the AI teleprompter for pitches and calls`
+    document.title = title ? `${title} · ${PRODUCT}` : `${PRODUCT} — never go blank in a pitch or a meeting`
   }, [title])
 
   // Section links (/#copilot) scroll to the section; page changes start at the top.
@@ -149,7 +149,7 @@ function SiteFooter() {
             <span className="text-[15px] font-semibold tracking-tight">{PRODUCT}</span>
           </Link>
           <p className="mt-3 max-w-xs text-[13.5px] leading-relaxed text-slate-600">
-            The teleprompter that follows your voice, with an AI copilot for the questions you didn't rehearse.
+            The AI agent at your side in every pitch and meeting: your script follows your voice, and SI tells you what to answer.
           </p>
         </div>
         {col('Product', [

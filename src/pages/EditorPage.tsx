@@ -7,6 +7,7 @@ import {
   Loader2,
   MonitorUp,
   Play,
+  Library,
   Plus,
   Save,
   ScanText,
@@ -23,6 +24,7 @@ import { TitleBar } from '../components/TitleBar'
 import { toast } from '../components/Toast'
 import { useAccount } from '../features/account/account'
 import { deckContext, runCopilot } from '../features/copilot/api'
+import { SourcesDialog } from '../features/copilot/SourcesDialog'
 import { useSettings } from '../features/settings/settingsStore'
 import { ConfidenceBadge } from '../features/slides/ConfidenceBadge'
 import { SlideImage } from '../features/slides/SlideImage'
@@ -48,6 +50,7 @@ export function EditorPage() {
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [extracting, setExtracting] = useState<null | 'auto' | 'ocr'>(null)
   const [drafting, setDrafting] = useState(false)
+  const [sourcesOpen, setSourcesOpen] = useState(false)
   const signedIn = useAccount((s) => !!s.session)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const latest = useRef<Presentation | null>(null)
@@ -223,6 +226,9 @@ export function EditorPage() {
             <span className="mr-2 hidden text-[12px] text-subtle lg:inline">
               {p.slides.length} slides · ~{formatDuration(estimateMs(totalWords, wpm))}
             </span>
+            <Button size="sm" variant="ghost" icon={<Library size={13} />} title="Material SI can use in answers" onClick={() => setSourcesOpen(true)}>
+              Sources{p.sources?.length ? ` (${p.sources.length})` : ''}
+            </Button>
             <Button
               size="sm"
               icon={<MonitorUp size={13} />}
@@ -415,6 +421,14 @@ export function EditorPage() {
         </main>
       </div>
 
+      <SourcesDialog
+        presentation={sourcesOpen ? p : null}
+        onClose={() => setSourcesOpen(false)}
+        onSave={async (next) => {
+          commit(next)
+          await flush()
+        }}
+      />
       <Modal
         open={confirmDelete}
         title={`Delete slide ${index + 1}?`}

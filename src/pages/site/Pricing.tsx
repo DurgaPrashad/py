@@ -59,7 +59,8 @@ const STANDARD_FEATURES = [
 
 const SI_FEATURES = [
   'Hears questions asked on the call and suggests an answer in seconds',
-  'Answers grounded in your deck, scripts and Q&A prep notes',
+  'Answers grounded in your deck, scripts, Q&A prep notes and sources',
+  'Add sources with the + button: text notes on any SI plan; upload PDFs and documents on SI yearly',
   'Type any question mid-call for an instant talking point',
   'AI drafts a speaking script for any slide',
   'Built-in AI, or plug in your own API key: Claude, OpenAI, Gemini, Groq, OpenRouter or any OpenAI-compatible API',
@@ -171,7 +172,7 @@ export function PricingTable() {
           </span>
           <div className="flex items-center justify-between">
             <h3 className="text-[17px] font-semibold">SI</h3>
-            <span className="rounded-full bg-orange-100 px-2.5 py-1 text-[11.5px] font-semibold text-orange-700">Smart Intelligence</span>
+            <span className="rounded-full bg-orange-100 px-2.5 py-1 text-[11.5px] font-semibold text-orange-700">Super Intelligence</span>
           </div>
           <p className="mt-1 text-[13.5px] text-slate-500">Standard + an AI copilot for live Q&A.</p>
           <div className="mt-6 flex items-baseline gap-1.5">
@@ -214,7 +215,7 @@ function Feature({ children, accent }: { children: React.ReactNode; accent?: boo
 const FAQ: [string, string][] = [
   [
     'What is the difference between Standard and SI?',
-    'Standard (non-SI) is the full teleprompter for your own script: paste or write what you want to say, and the strip under your camera follows your voice. It has no usage limits. SI adds Smart Intelligence: an AI copilot that hears the questions people ask on your call and suggests an answer built from your deck and notes.',
+    'Standard (non-SI) is the full teleprompter for your own script: paste or write what you want to say, and the strip under your camera follows your voice. It has no usage limits. SI adds Super Intelligence: an AI copilot that hears the questions people ask on your call and suggests an answer built from your deck and notes.',
   ],
   [
     'Is Standard really unlimited?',

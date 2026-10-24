@@ -48,6 +48,18 @@ export interface Presentation {
   slides: Slide[]
   /** Facts the SI copilot may use when answering questions (traction, team, pricing…). */
   qaNotes?: string
+  /** Material SI may draw on: typed text, or text extracted from uploaded files. */
+  sources?: Source[]
+}
+
+export interface Source {
+  id: string
+  kind: 'text' | 'file'
+  title: string
+  /** Plain text the SI copilot reads. */
+  content: string
+  fileName?: string
+  addedAt: number
 }
 
 export type VoiceCommand = 'next' | 'previous' | 'repeat' | 'pause' | 'resume'
@@ -61,7 +73,7 @@ export type AiProvider = 'reflex' | 'anthropic' | 'openai' | 'gemini' | 'groq' |
 export type OwnKeyProvider = Exclude<AiProvider, 'reflex'>
 
 export interface Settings {
-  version: 3
+  version: 4
   speech: {
     modelId: string
     deviceId: string | null
@@ -124,6 +136,14 @@ export interface Settings {
     instructions: string
     /** Answer questions heard on the call without a click. */
     autoAnswer: boolean
+    /** Where the copilot sits while presenting: a box under the top text bar, or a side panel. */
+    panel: 'top' | 'side'
+    /** Answer text size (px). */
+    textSize: number
+    /** Width of the box under the top bar (% of the window). */
+    width: number
+    /** Opacity of the copilot's black background, 0..1. */
+    opacity: number
   }
 }
 

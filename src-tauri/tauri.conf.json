@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Reflex Presenter",
-  "version": "0.2.0",
+  "productName": "Present",
+  "version": "0.3.0",
   "identifier": "com.reflexpresenter.app",
   "build": {
     "frontendDist": "../dist",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Reflex Presenter",
+        "title": "Present",
         "width": 1360,
         "height": 860,
         "minWidth": 960,

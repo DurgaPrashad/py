@@ -137,14 +137,14 @@ export function SettingsPage() {
               <Row label="Background opacity">
                 <Slider value={settings.teleprompter.opacity} min={0.2} max={1} step={0.02} onChange={(v) => update('teleprompter', { opacity: v })} format={(v) => `${Math.round(v * 100)}%`} />
               </Row>
-              <Row label="Text speed" hint="How quickly the strip glides to the next words.">
+              <Row label="Text speed" hint="How quickly the text moves to the next words. Fastest is the default — slide left to slow it down.">
                 <Slider
                   value={720 - settings.teleprompter.transitionMs}
                   min={120}
-                  max={600}
+                  max={660}
                   step={20}
                   onChange={(v) => update('teleprompter', { transitionMs: 720 - v })}
-                  format={(v) => (v > 480 ? 'Snappy' : v > 300 ? 'Smooth' : 'Gentle')}
+                  format={(v) => (v >= 640 ? 'Fastest' : v > 480 ? 'Snappy' : v > 300 ? 'Smooth' : 'Gentle')}
                 />
               </Row>
               <Row label="Position" hint="Top bar (default) runs across the top of the screen, close to your webcam. Under camera is a compact strip right below the lens.">
@@ -401,7 +401,7 @@ function PresentingSection() {
           settings.display.mode === 'share'
             ? platform.kind === 'web'
               ? 'The teleprompter floats in its own small window and this tab shows only the deck. In Meet, Zoom or Teams share “This tab” — the audience sees just the slides.'
-              : 'The slides fill the screen in their own window and the teleprompter floats under your camera. In Meet, Zoom or Teams share the “Reflex — Slides” window.'
+              : 'The slides fill the screen in their own window and the teleprompter floats under your camera. In Meet, Zoom or Teams share the “Present — Slides” window.'
             : 'Second display puts the slides on another screen. Screen share is for video calls: share only the slides, keep the teleprompter with you.'
         }
       >
@@ -578,7 +578,7 @@ function SiSection() {
     try {
       const text = await complete(si, {
         system: 'You are a connection test. Reply with a short greeting of at most five words.',
-        material: 'Connection test from Reflex Presenter.',
+        material: 'Connection test from Present.',
         prompt: 'Say hello.',
         maxTokens: 1000,
       })
@@ -611,7 +611,7 @@ function SiSection() {
     <Section
       id="si"
       title="SI copilot"
-      description="Smart Intelligence suggests answers to the questions people ask on your calls, from your deck and Q&A prep notes. Use the built-in AI, or connect any AI provider with your own API key."
+      description="Super Intelligence suggests answers to the questions people ask on your calls, from your deck and Q&A prep notes. Use the built-in AI, or connect any AI provider with your own API key."
     >
       <div className="flex items-center gap-2.5 py-3.5 text-[13px] text-muted">
         <Sparkles size={15} className="shrink-0 text-accent" />
@@ -753,6 +753,30 @@ function SiSection() {
       <Row label="Answer detected questions automatically" hint="Off: questions heard on the call are listed, and you click to get an answer.">
         <Toggle checked={si.autoAnswer} onChange={(autoAnswer) => update('si', { autoAnswer })} />
       </Row>
+
+      <div className="pt-6 pb-2 text-[12px] font-semibold tracking-wide text-subtle uppercase">Look while presenting</div>
+      <SiPreview />
+      <Row label="Where it appears" hint="Under the top bar keeps answers next to your script. Press Q while presenting to show or hide it.">
+        <Segmented
+          value={si.panel}
+          onChange={(panel) => update('si', { panel })}
+          options={[
+            { value: 'top', label: 'Under the top bar' },
+            { value: 'side', label: 'Side panel' },
+          ]}
+        />
+      </Row>
+      <Row label="Text size">
+        <Slider value={si.textSize} min={11} max={24} onChange={(textSize) => update('si', { textSize })} format={(v) => `${v}px`} />
+      </Row>
+      {si.panel === 'top' && (
+        <Row label="Box width" hint="Width of the answer box under the top bar.">
+          <Slider value={si.width} min={30} max={100} onChange={(width) => update('si', { width })} format={(v) => `${v}%`} />
+        </Row>
+      )}
+      <Row label="Background opacity" hint="How dark the black background behind the answers is. Lower shows more of the slide through it.">
+        <Slider value={si.opacity} min={0.2} max={1} step={0.02} onChange={(opacity) => update('si', { opacity })} format={(v) => `${Math.round(v * 100)}%`} />
+      </Row>
     </Section>
   )
 }
@@ -847,6 +871,29 @@ function AccountCard() {
         >
           Sign out
         </button>
+      </div>
+    </div>
+  )
+}
+
+/** A sample SI answer box with the current text size and background opacity. */
+function SiPreview() {
+  const si = useSettings((s) => s.settings.si)
+  return (
+    <div className="mb-3 overflow-hidden rounded-xl border border-line bg-[linear-gradient(135deg,#f6f5f1_0%,#e8e4dc_100%)] p-5">
+      <div
+        className="mx-auto rounded-2xl border border-white/10 px-3.5 py-2.5 text-white shadow-xl backdrop-blur"
+        style={{ background: `rgb(8 8 10 / ${Math.round(si.opacity * 100)}%)`, width: si.panel === 'top' ? `${Math.max(40, si.width)}%` : '60%' }}
+      >
+        <div className="flex items-center gap-1.5 text-[12px] font-semibold">
+          <Sparkles size={12} className="text-accent" /> SI copilot
+        </div>
+        <div className="mt-1.5 text-white/55" style={{ fontSize: Math.max(10.5, si.textSize - 2) }}>
+          How will you use the money you're raising?
+        </div>
+        <div className="mt-1 whitespace-pre-line" style={{ fontSize: si.textSize, lineHeight: 1.55 }}>
+          {'We’re raising $1.5M for 18 months of runway.\n• 50% engineering\n• 30% go-to-market'}
+        </div>
       </div>
     </div>
   )

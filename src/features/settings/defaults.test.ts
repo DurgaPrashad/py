@@ -9,11 +9,11 @@ describe('settings migration', () => {
       teleprompter: { ...DEFAULT_SETTINGS.teleprompter, position: 'top', width: 88, transitionMs: 260, fontSize: 52 },
     }
     const s = mergeSettings(v1)
-    expect(s.version).toBe(3)
+    expect(s.version).toBe(4)
     expect(s.speech.stepMs).toBe(150)
     expect(s.speech.windowMs).toBe(8000)
     expect(s.teleprompter.position).toBe('top')
-    expect(s.teleprompter.transitionMs).toBe(140)
+    expect(s.teleprompter.transitionMs).toBe(60)
     expect(s.teleprompter.fontSize).toBe(52)
     expect(s.display.autoHideControls).toBe(true)
   })

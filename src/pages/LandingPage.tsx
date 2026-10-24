@@ -76,14 +76,14 @@ function Hero() {
           className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 py-1 pr-3 pl-1 text-[13px] text-slate-700 shadow-sm"
         >
           <span className="rounded-full bg-orange-600 px-2 py-0.5 text-[11.5px] font-semibold text-white">New</span>
-          SI copilot answers the questions you didn't rehearse <ArrowRight size={13} />
+          SI — Super Intelligence answers the questions you didn't rehearse <ArrowRight size={13} />
         </a>
         <h1 className="mx-auto mt-7 max-w-4xl text-[40px] leading-[1.04] font-semibold tracking-[-0.04em] text-slate-900 sm:text-[64px]">
-          Pitch like you've rehearsed it <span className="text-orange-600">a hundred times.</span>
+          Never go blank in a pitch <span className="text-orange-600">or a meeting.</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-slate-600 sm:text-[18px]">
-          Reflex puts your script right under your camera and moves it as you speak. With SI, it also listens for questions on the call and suggests
-          answers from your own deck — so founders and presenters stay calm on every investor and client call.
+          Present is the AI agent at your side for the moments you forget what to say. Your script stays right in front of you and moves as you speak —
+          and when someone asks a question, SI hears it and tells you what to answer, from your own deck and sources.
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <PrimaryLink to="/signup">
@@ -114,7 +114,7 @@ function HeroPreview() {
           <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
           <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
           <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-          <span className="ml-3 text-[11.5px] text-white/40">Reflex Presenter — Series A pitch</span>
+          <span className="ml-3 text-[11.5px] text-white/40">Present — Series A pitch</span>
         </div>
         <div className="relative overflow-hidden rounded-xl bg-black">
           <div className="absolute top-0 left-1/2 h-4 w-24 -translate-x-1/2 rounded-b-xl bg-[#1a1a1e]" aria-hidden />
@@ -170,7 +170,7 @@ function StatBand() {
           </p>
           <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-white/65">
             On an investor or client call, that's exactly when your deck has to carry you — the line you forget, the number you blank on, the question
-            you didn't see coming. Reflex is built for that moment.
+            you didn't see coming. Present is built for that moment.
           </p>
         </div>
       </div>
@@ -191,7 +191,7 @@ function Features() {
       <div className="pointer-events-none absolute top-1/2 left-1/2 h-[260px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-fuchsia-500/10 blur-[100px]" aria-hidden />
       <div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6">
         <SectionHeading eyebrow="Product" title="Everything you need to deliver the pitch" dark>
-          Import your deck, write or paste exactly what you want to say, and present. Reflex keeps up with you.
+          Import your deck, write or paste exactly what you want to say, and present. Present keeps up with you.
         </SectionHeading>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <FeatureCard icon={<Mic size={19} />} title="A teleprompter that listens">
@@ -224,7 +224,7 @@ function CopilotSection() {
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 py-24 sm:px-6 lg:grid-cols-2">
         <div>
           <p className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-[12.5px] font-semibold text-orange-700">
-            <Sparkles size={13} /> SI · Smart Intelligence
+            <Sparkles size={13} /> SI · Super Intelligence
           </p>
           <h2 className="mt-5 text-[34px] leading-[1.1] font-semibold tracking-[-0.03em] sm:text-[42px]">The answer is on screen before the silence gets awkward.</h2>
           <p className="mt-5 text-[16.5px] leading-relaxed text-slate-600">
@@ -337,7 +337,7 @@ function CallsSection() {
     <section className="border-t border-slate-200">
       <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
         <SectionHeading eyebrow="Google Meet · Zoom · Teams" title="Your audience sees the slides. The script stays with you.">
-          Use <b className="font-semibold text-slate-900">Present on a call</b>. Reflex puts the slides and the teleprompter in separate places — then you
+          Use <b className="font-semibold text-slate-900">Present on a call</b>. Present puts the slides and the teleprompter in separate places — then you
           share only the slides.
         </SectionHeading>
         <div className="grid gap-5 md:grid-cols-2">
@@ -345,14 +345,14 @@ function CallsSection() {
             <li>Open your deck and click <b>Present on a call</b>, then <b>Start</b>.</li>
             <li>The teleprompter — and SI, if you want it — pops out into a small floating window under your camera.</li>
             <li>
-              In Meet: <b>Share screen → A tab</b> → choose the <b>Reflex Presenter</b> tab. Zoom / Teams: share that browser tab.
+              In Meet: <b>Share screen → A tab</b> → choose the <b>Present</b> tab. Zoom / Teams: share that browser tab.
             </li>
           </CallCard>
           <CallCard icon={<Laptop size={18} />} title="In the Mac app">
             <li>Open your deck and click <b>Present on a call</b>, then <b>Start</b>.</li>
             <li>The slides fill the screen and the teleprompter floats under your camera in its own window.</li>
             <li>
-              In the meeting app: <b>Share → Window</b> → <b>Reflex — Slides (share this window)</b>.
+              In the meeting app: <b>Share → Window</b> → <b>Present — Slides (share this window)</b>.
             </li>
           </CallCard>
         </div>
@@ -379,7 +379,7 @@ function DownloadSection() {
         <div className="mx-auto flex max-w-4xl flex-col items-start justify-between gap-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-sm md:flex-row md:items-center md:p-9">
           <div>
             <div className="flex items-center gap-2 text-[18px] font-semibold">
-              <Laptop size={20} className="text-orange-600" /> Prefer an app? Get Reflex for Mac
+              <Laptop size={20} className="text-orange-600" /> Prefer an app? Get Present for Mac
             </div>
             <p className="mt-2 text-[14.5px] leading-relaxed text-slate-600">
               {release
@@ -418,7 +418,7 @@ const FAQ: [string, string][] = [
   ],
   [
     'Does it work with Google Meet, Zoom and Microsoft Teams?',
-    'Yes. Reflex runs beside any meeting app. In the browser, share the Reflex tab; in the Mac app, share the slides window.',
+    'Yes. Present runs beside any meeting app. In the browser, share the Present tab; in the Mac app, share the slides window.',
   ],
   [
     'Is my voice or my deck uploaded?',

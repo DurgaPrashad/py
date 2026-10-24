@@ -12,9 +12,9 @@ use crate::error::{err, CmdResult};
 
 pub const AUDIENCE_LABEL: &str = "audience";
 /// Shown in meeting apps' "share window" pickers.
-pub const AUDIENCE_TITLE: &str = "Reflex — Slides (share this window)";
-const MAIN_TITLE: &str = "Reflex Presenter";
-const COMPACT_TITLE: &str = "Reflex — Teleprompter (don't share)";
+pub const AUDIENCE_TITLE: &str = "Present — Slides (share this window)";
+const MAIN_TITLE: &str = "Present";
+const COMPACT_TITLE: &str = "Present — Teleprompter (don't share)";
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

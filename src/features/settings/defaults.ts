@@ -3,7 +3,7 @@ import { isTauri } from '../../services/tauri'
 import type { Settings } from '../../types'
 
 export const DEFAULT_SETTINGS: Settings = {
-  version: 3,
+  version: 4,
   speech: {
     // The browser runs Whisper on WebGPU; Tiny keeps updates live there.
     modelId: isTauri() ? 'base.en' : 'tiny.en',
@@ -25,7 +25,8 @@ export const DEFAULT_SETTINGS: Settings = {
     align: 'center',
     highlightStyle: 'pill',
     highlightTarget: 'spoken',
-    transitionMs: 140,
+    // Fastest movement by default; slower in Settings → Teleprompter → Text speed.
+    transitionMs: 60,
     dimSpoken: true,
     uppercase: false,
     showTranscript: false,
@@ -68,6 +69,10 @@ export const DEFAULT_SETTINGS: Settings = {
     answerLength: 'standard',
     instructions: '',
     autoAnswer: true,
+    panel: 'top',
+    textSize: 13,
+    width: 56,
+    opacity: 0.8,
   },
 }
 
@@ -106,6 +111,10 @@ function migrate(s: Settings, from: number): Settings {
       tp.width = DEFAULT_SETTINGS.teleprompter.width
     }
     s = { ...s, speech: sp, teleprompter: tp }
+  }
+  if (from < 4) {
+    // Text moves as fast as possible by default now.
+    if (s.teleprompter.transitionMs === 140) s = { ...s, teleprompter: { ...s.teleprompter, transitionMs: DEFAULT_SETTINGS.teleprompter.transitionMs } }
   }
   if (from < 3) {
     // The top bar became the default layout; "under camera" stays one click away.

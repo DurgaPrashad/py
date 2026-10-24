@@ -182,7 +182,7 @@ export function TermsPage() {
           script, with unlimited usage during the period you paid for.
         </li>
         <li>
-          <strong>SI (Smart Intelligence)</strong> — {price('si_monthly')} per month or {price('si_yearly')} per year: everything in Standard plus the AI
+          <strong>SI (Super Intelligence)</strong> — {price('si_monthly')} per month or {price('si_yearly')} per year: everything in Standard plus the AI
           copilot, with fair use of up to {AI_DAILY_LIMIT} AI answers per day.
         </li>
       </ul>

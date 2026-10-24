@@ -53,7 +53,7 @@ export async function builtInAvailable(): Promise<boolean> {
   return !!(data as { configured?: boolean } | null)?.configured
 }
 
-const MAX_CONTEXT = 100_000
+const MAX_CONTEXT = 300_000
 
 /** The presenter's material, as plain text for the copilot. */
 export function deckContext(p: Presentation, currentSlide?: number): string {
@@ -66,5 +66,7 @@ export function deckContext(p: Presentation, currentSlide?: number): string {
     if (s.notes.trim()) lines.push(`Notes: ${s.notes.trim()}`)
     if (lines.length > 1) parts.push(lines.join('\n'))
   }
+  // Sources last: if they run long, they are what gets trimmed, not the deck.
+  for (const src of p.sources ?? []) parts.push(`Source — ${src.title}${src.fileName ? ` (${src.fileName})` : ''}:\n${src.content}`)
   return parts.join('\n\n').slice(0, MAX_CONTEXT)
 }

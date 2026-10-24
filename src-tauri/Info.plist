@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Reflex Presenter listens to your voice locally, on this Mac, to follow your script while you present. Audio never leaves your computer.</string>
+  <string>Present listens to your voice locally, on this Mac, to follow your script while you present. Audio never leaves your computer.</string>
 </dict>
 </plist>

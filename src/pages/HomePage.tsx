@@ -1,4 +1,5 @@
 import { FileText, MonitorUp, MoreHorizontal, Pencil, Play, Plus, Presentation as PresentationIcon, Search, Settings2, Trash2, Upload } from 'lucide-react'
+import { SourcesDialog } from '../features/copilot/SourcesDialog'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, IconButton } from '../components/Button'
@@ -33,6 +34,7 @@ export function HomePage() {
   const [query, setQuery] = useState('')
   const [renaming, setRenaming] = useState<Presentation | null>(null)
   const [deleting, setDeleting] = useState<Presentation | null>(null)
+  const [sourcesFor, setSourcesFor] = useState<Presentation | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -76,7 +78,7 @@ export function HomePage() {
         left={
           <div className="flex items-center gap-2.5">
             <Logo />
-            <span className="text-[13.5px] font-semibold tracking-tight">Reflex Presenter</span>
+            <span className="text-[13.5px] font-semibold tracking-tight">Present</span>
           </div>
         }
         right={
@@ -140,6 +142,7 @@ export function HomePage() {
                     onPresentCall={() => navigate(`/present/${p.id}?mode=share`)}
                     onRename={() => setRenaming(p)}
                     onDelete={() => setDeleting(p)}
+                    onSources={() => setSourcesFor(p)}
                   />
                 ))}
               </ul>
@@ -158,6 +161,15 @@ export function HomePage() {
         </div>
       )}
 
+      <SourcesDialog
+        presentation={sourcesFor}
+        onClose={() => setSourcesFor(null)}
+        onSave={async (next) => {
+          const saved = await savePresentation(next)
+          setSourcesFor(saved)
+          refresh()
+        }}
+      />
       <RenameDialog
         item={renaming}
         onClose={() => setRenaming(null)}
@@ -208,6 +220,7 @@ function ProjectRow({
   onPresentCall,
   onRename,
   onDelete,
+  onSources,
 }: {
   p: Presentation
   wpm: number
@@ -216,6 +229,7 @@ function ProjectRow({
   onPresentCall: () => void
   onRename: () => void
   onDelete: () => void
+  onSources: () => void
 }) {
   const [menu, setMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -244,10 +258,19 @@ function ProjectRow({
             <span>Edited {formatRelative(p.updatedAt).replace(/^Just now$/, 'just now')}</span>
             <Dot />
             <span title={`${words} words at ${wpm} words per minute`}>{words ? `~${formatDuration(estimateMs(words, wpm))}` : 'No script yet'}</span>
+            {!!p.sources?.length && (
+              <>
+                <Dot />
+                <span>{plural(p.sources.length, 'source')}</span>
+              </>
+            )}
           </div>
         </div>
       </button>
       <div className="flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <IconButton label="Add sources for SI — notes, FAQs, documents" size="sm" onClick={onSources}>
+          <Plus size={16} />
+        </IconButton>
         <Button size="sm" variant="ghost" icon={<Pencil size={13} />} onClick={onOpen}>
           Edit
         </Button>
@@ -340,7 +363,7 @@ function EmptyState({ onPick }: { onPick: () => void }) {
       </div>
       <p className="mt-5 text-[15px] font-medium">Drop a presentation here</p>
       <p className="mt-1.5 max-w-sm text-[13px] text-muted">
-        PDF, PPTX or PPT. Reflex detects every slide, extracts its text, and lets you write exactly what you want to say.
+        PDF, PPTX or PPT. Present detects every slide, extracts its text, and lets you write exactly what you want to say.
       </p>
     </button>
   )

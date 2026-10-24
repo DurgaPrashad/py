@@ -100,7 +100,7 @@ pub fn run() {
             }
         })
         .build(tauri::generate_context!())
-        .expect("error while building Reflex Presenter");
+        .expect("error while building Present");
 
     app.run(|handle, event| {
         if let RunEvent::Exit = event {

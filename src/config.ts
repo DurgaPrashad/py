@@ -1,7 +1,7 @@
 /** Public configuration of the hosted service. Everything here is safe to ship to browsers. */
 
-export const PRODUCT = 'Reflex Presenter'
-export const SITE_URL = 'https://presenter.waspid.com'
+export const PRODUCT = 'Present'
+export const SITE_URL = 'https://present.waspid.com'
 
 // The publishable key only allows what the database's row-level security and
 // function grants allow; secrets live server-side in Supabase Vault.

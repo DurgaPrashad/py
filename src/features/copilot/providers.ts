@@ -156,7 +156,7 @@ async function completeOpenAiCompatible(provider: OwnKeyProvider, base: string, 
   if (key) headers.Authorization = `Bearer ${key}`
   if (provider === 'openrouter') {
     headers['HTTP-Referer'] = location.origin
-    headers['X-Title'] = 'Reflex Presenter'
+    headers['X-Title'] = 'Present'
   }
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',

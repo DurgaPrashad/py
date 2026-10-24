@@ -1,6 +1,6 @@
-# Reflex Presenter
+# Present
 
-A local-first, AI-powered presentation teleprompter. Import a PDF or PowerPoint deck, write (or generate) the exact script for each slide, then present: Reflex listens to your microphone **on your machine**, follows what you say word by word, and shows an 8-word teleprompter strip that glides forward as you speak.
+A local-first, AI-powered presentation teleprompter. Import a PDF or PowerPoint deck, write (or generate) the exact script for each slide, then present: Present listens to your microphone **on your machine**, follows what you say word by word, and shows an 8-word teleprompter strip that glides forward as you speak.
 
 ```
 MICROPHONE → LOCAL SPEECH RECOGNITION → PARTIAL TRANSCRIPT → WORD ALIGNMENT → CURRENT WORD → 8-WORD WINDOW → LIVE HIGHLIGHT
@@ -13,13 +13,13 @@ Speech recognition is local — no cloud speech. It runs two ways from the same 
 
 ## Accounts, plans and the SI copilot
 
-The hosted site (https://presenter.waspid.com) has accounts and paid plans; everything server-side runs inside Supabase Postgres, so the site itself stays static.
+The hosted site (https://present.waspid.com) has accounts and paid plans; everything server-side runs inside Supabase Postgres, so the site itself stays static.
 
 | Plan | Price | What it unlocks |
 | --- | --- | --- |
 | Free trial | 7 days | Standard + 5 SI answers |
 | **Standard** (non-SI) | $4 / month · $24 / year | Presenting with the teleprompter, unlimited usage |
-| **SI** (Smart Intelligence) | $9 / month · $69 / year | Standard + the AI copilot (up to 300 answers a day) |
+| **SI** (Super Intelligence) | $9 / month · $69 / year | Standard + the AI copilot (up to 300 answers a day); SI yearly also unlocks uploading files as sources |
 
 Plans are prepaid (Razorpay Orders, USD) and never renew automatically.
 
@@ -32,6 +32,7 @@ Plans are prepaid (Razorpay Orders, USD) and never renew automatically.
   ```
 - **Settings** (`private.settings`): AI model and effort, free SI answers, trial length, daily AI limit, sign-up rate limit. Prices: `private.plans` (keep `src/config.ts` in step).
 - **Public client config:** `src/config.ts` (Supabase URL + publishable key; override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`).
+- **Sources:** the **+** button on a presentation (or *Sources* in the editor) adds material SI may use — typed text with SI, file uploads (PDF, .docx, text) with SI yearly (`profiles.si_yearly_until`). Files are read on the device; only their text is stored with the presentation.
 - **SI with any AI:** *Settings → SI copilot* picks the built-in AI (server-side, site key) or the presenter's own API key for Anthropic Claude, OpenAI, Google Gemini, Groq, OpenRouter or any OpenAI-compatible endpoint (Ollama, LM Studio, DeepSeek…). Own keys stay on the device; answers stream straight from the provider (`src/features/copilot/providers.ts`), and `claim_copilot_use` still checks the SI plan / trial. Answer length and custom instructions apply to both.
 - **SI copilot:** in presentation mode press `Q` (or the ✦ button). *Listen to the call* shares the meeting tab's audio (Chrome/Edge, “Also share tab audio”); it is transcribed on-device by a second Whisper worker, questions are detected (`src/features/copilot/questions.ts`) and only the question plus deck text is sent for an answer. Typed questions work everywhere. The editor's *Q&A prep notes* and *Draft with AI* use the same function.
 - **Website pages:** `/`, `/pricing`, `/docs` (every feature, documented), `/download` (Mac app install guide), `/privacy`, `/terms`, `/refunds`, `/shipping`, `/cookies`, `/contact`, `/login`, `/signup`, `/account`. Settings shows the signed-in name, email and plan; the Mac app signs in with the same account. The web app is at `/app` and needs an account; presenting needs the trial or a plan.
@@ -46,12 +47,12 @@ npm run build        # static site in dist/
 
 **Hosting:** `dist/` is a static single-page site with real paths (`/pricing`, `/app`, `/present/…`), so the host must serve `index.html` for unknown paths.
 
-- **Vercel** — import the repo; it detects Vite (build `npm run build`, output `dist`). `vercel.json` adds the rewrite. This is how presenter.waspid.com is hosted: pushing to `main` deploys it.
+- **Vercel** — import the repo; it detects Vite (build `npm run build`, output `dist`). `vercel.json` adds the rewrite. This is how present.waspid.com is hosted: pushing to `main` deploys it.
 - **Netlify** — import the repo; `netlify.toml` is included (with the rewrite).
 - **GitHub Pages** — in the repo settings set *Pages → Source* to *GitHub Actions*, then run the **Deploy to GitHub Pages** workflow (Actions tab). The site appears at `https://<user>.github.io/<repo>/` (built with `VITE_BASE`); Pages has no rewrites, so deep links only work when opened from the site.
 - Hosts with a 25 MB per-file limit (e.g. Cloudflare Pages) won't serve the 27 MB speech runtime (`vendor/ort/*.wasm`).
 
-**In the browser:** use Chrome or Edge (WebGPU and the floating teleprompter window). The first time you present, Reflex downloads the Whisper *Tiny English* model (~120 MB) from Hugging Face; the browser caches it and recognition then runs on the device (~0.2–0.3 s per update on a recent Mac). Slides, scripts and settings are kept in this browser (IndexedDB / localStorage) — nothing is uploaded. Legacy `.ppt` files need the desktop app (save as `.pptx` or PDF instead).
+**In the browser:** use Chrome or Edge (WebGPU and the floating teleprompter window). The first time you present, Present downloads the Whisper *Tiny English* model (~120 MB) from Hugging Face; the browser caches it and recognition then runs on the device (~0.2–0.3 s per update on a recent Mac). Slides, scripts and settings are kept in this browser (IndexedDB / localStorage) — nothing is uploaded. Legacy `.ppt` files need the desktop app (save as `.pptx` or PDF instead).
 
 ## Desktop app
 
@@ -76,7 +77,7 @@ npm run package:mac  # build + ad-hoc sign + zip into public/downloads (served b
                      # (the desktop build strips website-only files: public/downloads, public/__dev__)
 ```
 
-The website's front page (`/`) explains Reflex and offers this zip; the web app itself is at `/app`. The Mac app is ad-hoc signed but not notarized, so on first launch macOS asks you to allow it under *System Settings → Privacy & Security → Open Anyway*.
+The website's front page (`/`) explains Present and offers this zip; the web app itself is at `/app`. The Mac app is ad-hoc signed but not notarized, so on first launch macOS asks you to allow it under *System Settings → Privacy & Security → Open Anyway*.
 
 ## Using it
 
@@ -113,12 +114,12 @@ When a slide's script is finished the strip shows **End of slide**; slides never
 
 Choose **Screen share** mode, open the presentation and click **Start**. Your audience sees only the deck; the teleprompter stays with you:
 
-- **Web app:** the teleprompter pops out into a small floating window (drag it right under your camera) and the browser tab shows only the deck. In Meet choose *Share screen → A tab* and pick the Reflex tab (Zoom / Teams: share that browser tab). The floating teleprompter is a separate window, so it is not part of the shared tab. Browsers without the floating-window feature (Safari, Firefox) get a slides-only pop-up window to share instead.
-- **Desktop app:** the slides fill the screen in a window titled **“Reflex — Slides (share this window)”** and the presenter shrinks into a floating strip under the camera. In the meeting app choose *Share → Window* and pick the slides window. Zoom's *Advanced → Portion of Screen* framed on the slide also works.
+- **Web app:** the teleprompter pops out into a small floating window (drag it right under your camera) and the browser tab shows only the deck. In Meet choose *Share screen → A tab* and pick the Present tab (Zoom / Teams: share that browser tab). The floating teleprompter is a separate window, so it is not part of the shared tab. Browsers without the floating-window feature (Safari, Firefox) get a slides-only pop-up window to share instead.
+- **Desktop app:** the slides fill the screen in a window titled **“Present — Slides (share this window)”** and the presenter shrinks into a floating strip under the camera. In the meeting app choose *Share → Window* and pick the slides window. Zoom's *Advanced → Portion of Screen* framed on the slide also works.
 
-The teleprompter is always an ordinary, visible window — Reflex doesn't hide anything from screen capture. If you share your *entire screen*, everything on it (including the teleprompter) is shared; share the tab or the slides window instead.
+The teleprompter is always an ordinary, visible window — Present doesn't hide anything from screen capture. If you share your *entire screen*, everything on it (including the teleprompter) is shared; share the tab or the slides window instead.
 
-**Screen share shows a blank window?** Reflex's windows are capturable (a built-in diagnostic captures them through the same macOS window-capture path meeting apps use and finds the slide content). A blank share means macOS has not allowed the *meeting app* to record the screen: open *System Settings → Privacy & Security → Screen & System Audio Recording* (Settings → Presenting has a button that opens it, as does the sharing tip in presentation mode), switch on Zoom — or Chrome / your browser if you use Zoom on the web — then quit and reopen that app. macOS periodically asks for this permission again.
+**Screen share shows a blank window?** Present's windows are capturable (a built-in diagnostic captures them through the same macOS window-capture path meeting apps use and finds the slide content). A blank share means macOS has not allowed the *meeting app* to record the screen: open *System Settings → Privacy & Security → Screen & System Audio Recording* (Settings → Presenting has a button that opens it, as does the sharing tip in presentation mode), switch on Zoom — or Chrome / your browser if you use Zoom on the web — then quit and reopen that app. macOS periodically asks for this permission again.
 
 ## Architecture
 

@@ -313,7 +313,7 @@ export function PresentPage() {
           }
           for (const node of document.head.querySelectorAll('style, link[rel="stylesheet"]')) w.document.head.appendChild(node.cloneNode(true))
           w.document.documentElement.className = 'dark'
-          w.document.title = 'Reflex — Teleprompter'
+          w.document.title = 'Present — Teleprompter'
           w.document.body.style.cssText = 'margin:0;background:#0b0b0e;overflow:hidden;height:100vh'
           w.addEventListener('pagehide', () => {
             setPipWindow(null)
@@ -562,7 +562,13 @@ export function PresentPage() {
 
   // In browser share mode the tab itself is what the audience sees: deck only.
   const deckOnly = web && shareLive && !!pipWindow
-  const sidePanel = copilotOpen && !deckOnly
+  const si = settings.si
+  const sidePanel = copilotOpen && !deckOnly && si.panel === 'side'
+  const topPanel = copilotOpen && !deckOnly && si.panel === 'top'
+  const panelBg = `rgb(8 8 10 / ${Math.round(si.opacity * 100)}%)`
+  // The top box sits right under the text bar (or the under-camera strip).
+  const topPanelTop = (camera ? camTop + stripH : tp.position === 'top' ? stripH : 0) + 10
+  const topPanelW = Math.min(viewportW - 24, Math.max(340, (viewportW * si.width) / 100))
 
   return (
     <div className={`dark relative h-full overflow-hidden bg-black text-fg ${controlsHidden ? 'cursor-none' : ''}`}>
@@ -603,10 +609,18 @@ export function PresentPage() {
 
       {sidePanel && (
         <aside
-          className="absolute right-4 z-30 overflow-hidden rounded-2xl border border-line-strong bg-elevated/95 shadow-2xl shadow-black/60 backdrop-blur-xl animate-rise"
-          style={{ top: Math.max(16, padTop - 14), bottom: padBottom - 8, width: SIDE_PANEL_W }}
+          className="absolute right-4 z-30 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/60 backdrop-blur-xl animate-rise"
+          style={{ top: Math.max(16, padTop - 14), bottom: padBottom - 8, width: SIDE_PANEL_W, background: panelBg }}
         >
           <CopilotPanel copilot={copilot} variant="side" onClose={() => setCopilotOpen(false)} />
+        </aside>
+      )}
+      {topPanel && (
+        <aside
+          className="absolute z-30 flex max-h-[46vh] flex-col overflow-hidden rounded-2xl border border-white/10 shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-rise"
+          style={{ top: topPanelTop, left: (viewportW - topPanelW) / 2, width: topPanelW, background: panelBg }}
+        >
+          <CopilotPanel copilot={copilot} variant="top" onClose={() => setCopilotOpen(false)} />
         </aside>
       )}
 
@@ -781,12 +795,12 @@ function ShareSetup({
         ]
       : [
           'Click Start. A slides-only window opens (allow pop-ups if asked).',
-          'In Google Meet, Zoom or Teams share that window — “Reflex — Slides”.',
+          'In Google Meet, Zoom or Teams share that window — “Present — Slides”.',
           'Keep this tab with the teleprompter on your screen; it is not shared.',
         ]
     : [
         'Click Start. Your slides fill the screen in their own window and the teleprompter floats just under your camera.',
-        'In Google Meet, Zoom or Teams choose Share → Window → “Reflex — Slides (share this window)” — not “Entire screen”.',
+        'In Google Meet, Zoom or Teams choose Share → Window → “Present — Slides (share this window)” — not “Entire screen”.',
         'Your audience sees only that window: the slides. The teleprompter floating on top of it is a separate window and is not shared. Use ← → or say “Next”; Esc to finish.',
       ]
   return (
@@ -1108,7 +1122,7 @@ function ModelSetup({
       <div className="w-[560px] max-w-full rounded-2xl border border-line-strong bg-elevated p-6 shadow-2xl">
         <h2 className="text-[17px] font-semibold tracking-tight">Set up local speech recognition</h2>
         <p className="mt-1.5 text-[13px] text-muted">
-          Reflex follows your voice with a Whisper model that runs entirely on this computer. Download one once — no account, no cloud.
+          Present follows your voice with a Whisper model that runs entirely on this computer. Download one once — no account, no cloud.
         </p>
         <div className="mt-5">
           <ModelList
