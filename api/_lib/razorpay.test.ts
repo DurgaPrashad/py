@@ -37,3 +37,17 @@ describe('DATABASE_URL', () => {
     expect(databaseUrl('postgresql://postgres.ref:pa%40ss@host:6543/postgres')).toBe('postgresql://postgres.ref:pa%40ss@host:6543/postgres')
   })
 })
+
+describe('env lookup', () => {
+  it('finds variables saved with other case, spaces, quotes or common alias names', async () => {
+    const { env } = await import('./http.js')
+    process.env['razorpay_key_id '] = ' "rzp_live_abc" '
+    process.env.POSTGRES_URL = 'postgresql://u:p@h:6543/postgres?sslmode=require&supa=base-pooler.x'
+    expect(env('RAZORPAY_KEY_ID')).toBe('rzp_live_abc')
+    expect(env('DATABASE_URL')).toBe('postgresql://u:p@h:6543/postgres?sslmode=require&supa=base-pooler.x')
+    const { databaseUrl } = await import('./db.js')
+    expect(databaseUrl(env('DATABASE_URL')!)).toBe('postgresql://u:p@h:6543/postgres?sslmode=require')
+    delete process.env['razorpay_key_id ']
+    delete process.env.POSTGRES_URL
+  })
+})

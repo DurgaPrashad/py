@@ -16,11 +16,17 @@ export function db() {
 
 /** Accepts a password with a raw "@" (or other reserved characters) in it by encoding it. */
 export function databaseUrl(raw: string): string {
-  const m = /^(postgres(?:ql)?:\/\/)([^:/@]+):(.*)@([^@]+)$/.exec(raw)
-  if (!m) return raw
-  const [, scheme, user, password, rest] = m
-  const encoded = /%[0-9a-f]{2}/i.test(password) ? password : encodeURIComponent(password)
-  return `${scheme}${user}:${encoded}@${rest}`
+  // Keep only sslmode from the query (integrations add extras such as `supa=…` the pooler rejects).
+  const [base, query = ''] = raw.split('?')
+  const ssl = new URLSearchParams(query).get('sslmode')
+  const m = /^(postgres(?:ql)?:\/\/)([^:/@]+):(.*)@([^@]+)$/.exec(base)
+  let url = base
+  if (m) {
+    const [, scheme, user, password, rest] = m
+    const encoded = /%[0-9a-f]{2}/i.test(password) ? password : encodeURIComponent(password)
+    url = `${scheme}${user}:${encoded}@${rest}`
+  }
+  return ssl ? `${url}?sslmode=${ssl}` : url
 }
 
 export interface PaymentRow {

@@ -4,7 +4,7 @@
  * variables in Vercel to confirm payments and the built-in AI are ready.
  */
 import { db } from './_lib/db.js'
-import { env, handle, json, preflight } from './_lib/http.js'
+import { env, handle, json, preflight, relatedEnvNames } from './_lib/http.js'
 import { razorpay } from './_lib/razorpay.js'
 
 export const OPTIONS = preflight
@@ -34,6 +34,12 @@ export function GET(): Promise<Response> {
     const ready = payments.razorpay_login === true && payments.database_connection === true
     return json({
       payments_ready: ready,
+      // Which deployment answered: variables only apply to deployments made after they were saved.
+      deployment: {
+        environment: env('VERCEL_ENV') ?? 'local',
+        commit: env('VERCEL_GIT_COMMIT_SHA')?.slice(0, 7) ?? null,
+        related_variable_names: relatedEnvNames(),
+      },
       payments,
       built_in_ai: { ANTHROPIC_API_KEY: !!env('ANTHROPIC_API_KEY'), model: env('AI_MODEL') ?? 'claude-opus-5-5' },
     })
