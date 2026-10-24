@@ -6,7 +6,7 @@ import { useBuyPlan } from '../../pages/site/Pricing'
 import type { Presentation } from '../../types'
 import { ownKeyReady, PROVIDERS } from '../copilot/providers'
 import { useSettings } from '../settings/settingsStore'
-import { daysLeft, entitlements, useAccount } from './account'
+import { daysLeft, daysLeftLabel, entitlements, useAccount } from './account'
 
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 
@@ -77,7 +77,7 @@ export function PlanDashboard({ items }: { items: Presentation[] | null }) {
         tone={ent.si ? 'accent' : 'plain'}
         eyebrow={ent.si ? 'SI · Super Intelligence' : 'Standard'}
         title={`Active until ${fmtDate(until)}`}
-        badge={`${left} day${left === 1 ? '' : 's'} left`}
+        badge={daysLeftLabel(until) || undefined}
       >
         <div className="h-1.5 overflow-hidden rounded-full bg-hover">
           <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(4, Math.min(100, (left / span) * 100))}%` }} />

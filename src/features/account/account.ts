@@ -137,6 +137,12 @@ export function entitlements(p: Profile | null) {
   }
 }
 
+/** "25 days left", or '' for a period with no practical end (over ten years). */
+export function daysLeftLabel(iso: string | null): string {
+  const n = daysLeft(iso)
+  return n > 3650 ? '' : `${n} day${n === 1 ? '' : 's'} left`
+}
+
 export function daysLeft(iso: string | null): number {
   if (!iso) return 0
   return Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000))

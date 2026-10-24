@@ -5,7 +5,7 @@ import { Button } from '../components/Button'
 import { Kbd, Segmented, Select, Slider, Toggle } from '../components/controls'
 import { TitleBar } from '../components/TitleBar'
 import { PRODUCT } from '../config'
-import { daysLeft, entitlements, useAccount } from '../features/account/account'
+import { daysLeftLabel, entitlements, useAccount } from '../features/account/account'
 import { AnswerText, answerLayout } from '../features/copilot/AnswerText'
 import { complete, ownKeyReady, PROVIDERS } from '../features/copilot/providers'
 import { DEFAULT_SETTINGS } from '../features/settings/defaults'
@@ -590,7 +590,7 @@ function SiSection() {
       to use SI.
     </>
   ) : ent.si ? (
-    <>SI plan active — {daysLeft(profile?.si_until ?? null)} days left.</>
+    <>SI plan active{daysLeftLabel(profile?.si_until ?? null) ? ` — ${daysLeftLabel(profile?.si_until ?? null)}` : ''}.</>
   ) : (
     <>
       AI answers are part of the SI plan.{' '}
@@ -856,7 +856,9 @@ function AccountCard() {
         }`}
       >
         {ent.planName}
-        {ent.si && profile ? ` · ${daysLeft(profile.si_until)} days left` : ent.standard && profile ? ` · ${daysLeft(profile.standard_until)} days left` : ''}
+        {profile && (ent.si || ent.standard) && daysLeftLabel(ent.si ? profile.si_until : profile.standard_until)
+          ? ` · ${daysLeftLabel(ent.si ? profile.si_until : profile.standard_until)}`
+          : ''}
       </span>
       <div className="mt-2.5 flex items-center gap-3 border-t border-line pt-2.5 text-[12px]">
         <Link to="/account" className="text-muted hover:text-fg">

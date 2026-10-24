@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../../components/Logo'
 import { toast } from '../../components/Toast'
 import { type PlanId, PLANS, PRESENTATION_LIMIT, PRODUCT, SITE_URL, TIER_NAME } from '../../config'
-import { daysLeft, entitlements, useAccount, type Payment } from '../../features/account/account'
+import { daysLeftLabel, entitlements, useAccount, type Payment } from '../../features/account/account'
 import { syncPayments } from '../../features/account/checkout'
 import { platform } from '../../platform'
 import { supabase } from '../../services/supabase'
@@ -67,11 +67,13 @@ export function AccountPage() {
 
   const status = !profile ? null : ent.si ? (
     <>
-      <b>SI</b> is active until <b>{fmtDate(profile.si_until)}</b> ({daysLeft(profile.si_until)} days left).
+      <b>SI</b> is active until <b>{fmtDate(profile.si_until)}</b>
+      {daysLeftLabel(profile.si_until) && ` (${daysLeftLabel(profile.si_until)})`}.
     </>
   ) : ent.standard ? (
     <>
-      <b>Standard</b> is active until <b>{fmtDate(profile.standard_until)}</b> ({daysLeft(profile.standard_until)} days left).
+      <b>Standard</b> is active until <b>{fmtDate(profile.standard_until)}</b>
+      {daysLeftLabel(profile.standard_until) && ` (${daysLeftLabel(profile.standard_until)})`}.
     </>
   ) : (
     <>No plan yet. Choose Standard or SI below — you can start as soon as the payment goes through.</>
