@@ -1,7 +1,7 @@
 /**
  * GET /api/health  ->  which server settings are present and working, as
  * yes/no only (never the values). Open it after changing environment
- * variables in Vercel to confirm payments and the built-in AI are ready.
+ * variables in Vercel to confirm payments are ready.
  */
 import { db } from './_lib/db.js'
 import { env, handle, json, preflight, relatedEnvNames } from './_lib/http.js'
@@ -57,7 +57,6 @@ export function GET(): Promise<Response> {
         related_variable_names: relatedEnvNames(),
       },
       payments,
-      built_in_ai: { ANTHROPIC_API_KEY: !!env('ANTHROPIC_API_KEY'), model: env('AI_MODEL') ?? 'claude-opus-5-5' },
     })
   })
 }

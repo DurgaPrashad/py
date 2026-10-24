@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../../components/Logo'
 import { toast } from '../../components/Toast'
-import { PLANS, PRODUCT, SITE_URL, TIER_NAME, type PlanId } from '../../config'
+import { type PlanId, PLANS, PRESENTATION_LIMIT, PRODUCT, SITE_URL, TIER_NAME } from '../../config'
 import { daysLeft, entitlements, useAccount, type Payment } from '../../features/account/account'
 import { syncPayments } from '../../features/account/checkout'
 import { platform } from '../../platform'
@@ -134,7 +134,8 @@ export function AccountPage() {
                 <p className="mt-2 text-[13.5px] text-slate-500">Standard continues after SI ends, until {fmtDate(profile.standard_until)}.</p>
               )}
               <p className="mt-3 text-[13.5px] text-slate-500">
-                {ent.si ? 'SI copilot answers: up to 300 a day with the built-in AI.' : 'AI answers on calls come with the SI plan.'}
+                {ent.presentationLimit === null ? 'Unlimited presentations.' : `Up to ${ent.presentationLimit} presentations — any yearly plan is unlimited.`}{' '}
+                {ent.si ? 'SI answers with your own AI key (Settings → SI in the app).' : 'AI answers on calls come with the SI plan.'}
               </p>
             </>
           )}
@@ -171,7 +172,7 @@ export function AccountPage() {
                   <div className="flex items-center gap-2">
                     {tier === 'si' && <Sparkles size={15} className="text-orange-600" />}
                     <h3 className="text-[16px] font-semibold">{TIER_NAME[tier]}</h3>
-                    <span className="text-[12.5px] text-slate-500">{tier === 'si' ? 'with AI copilot' : 'non-SI · unlimited usage'}</span>
+                    <span className="text-[12.5px] text-slate-500">{tier === 'si' ? 'teleprompter + AI copilot' : 'teleprompter'}</span>
                   </div>
                   <div className="mt-4 flex flex-col gap-2">
                     {(['monthly', 'yearly'] as const).map((period) => {
@@ -191,6 +192,9 @@ export function AccountPage() {
                         >
                           <span className="flex items-center gap-2">
                             {busy === id && <Loader2 size={15} className="animate-spin" />}1 {plan.interval}
+                            <span className={`text-[12.5px] font-normal ${highlight === id ? 'text-white/80' : 'text-slate-500'}`}>
+                              · {period === 'yearly' ? 'unlimited presentations' : `${PRESENTATION_LIMIT[tier]} presentations`}
+                            </span>
                           </span>
                           <span>${plan.price}</span>
                         </button>

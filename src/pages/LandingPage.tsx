@@ -23,7 +23,7 @@ import { Link } from 'react-router-dom'
 import { DEFAULT_SETTINGS } from '../features/settings/defaults'
 import { Teleprompter } from '../features/teleprompter/Teleprompter'
 import { tokenizeScript } from '../services/alignment/normalize'
-import { INSTALL_COMMAND, PLANS } from '../config'
+import { INSTALL_COMMAND, PLANS, PRESENTATION_LIMIT } from '../config'
 import { AnswerText, answerLayout } from '../features/copilot/AnswerText'
 import { PricingTable } from './site/Pricing'
 import { PrimaryLink, SecondaryLink, SiteShell } from './site/SiteShell'
@@ -52,8 +52,9 @@ export function LandingPage() {
       <CallsSection />
       <section id="pricing" className="scroll-mt-16 border-t border-slate-200 bg-slate-50/70">
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <SectionHeading eyebrow="Pricing" title="Unlimited teleprompting from $4 a month">
-            Standard (non-SI) is everything you need to deliver your own script. SI adds the AI copilot for live questions.
+          <SectionHeading eyebrow="Pricing" title="Less than a coffee a month. Never go blank again.">
+            Standard keeps your own script in front of you, following your voice. SI also hands you the answer when they ask — on your own AI key, with
+            no daily caps.
           </SectionHeading>
           <PricingTable />
         </div>
@@ -528,7 +529,7 @@ const FAQ: [string, string][] = [
   ],
   [
     'Is my voice or my deck uploaded?',
-    'No. Speech recognition runs on your device and your slides and scripts are stored on your device. Only when SI answers a question are that question and the relevant text of your deck sent to our AI provider.',
+    'No. Speech recognition runs on your device and your slides and scripts are stored on your device. Only when SI answers a question are that question and the relevant text of your deck sent — straight from your device — to the AI provider you connected with your own key.',
   ],
   [
     'What do I need?',
@@ -536,7 +537,7 @@ const FAQ: [string, string][] = [
   ],
   [
     'How do I start?',
-    `Create an account, then choose Standard ($${PLANS.standard_monthly.price}/month or $${PLANS.standard_yearly.price}/year, unlimited usage) or SI ($${PLANS.si_monthly.price}/month or $${PLANS.si_yearly.price}/year). Plans are prepaid and never renew automatically.`,
+    `Create an account and set up your first presentations. To present, choose Standard ($${PLANS.standard_monthly.price}/month for ${PRESENTATION_LIMIT.standard} presentations, or $${PLANS.standard_yearly.price}/year unlimited) or SI ($${PLANS.si_monthly.price}/month for ${PRESENTATION_LIMIT.si}, or $${PLANS.si_yearly.price}/year unlimited). SI runs on your own AI key. Plans are prepaid and never renew automatically.`,
   ],
 ]
 

@@ -5,7 +5,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 
 /**
  * `npm run dev` serves the Vercel functions in api/ too, with the variables
- * from .env.local, so payments and the built-in AI work locally.
+ * from .env.local, so payments work locally.
  */
 function apiFunctions(): Plugin {
   const readBody = (req: IncomingMessage) =>

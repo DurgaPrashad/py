@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { AI_DAILY_LIMIT, INSTALL_COMMAND, PLANS, PRODUCT } from '../../config'
+import { INSTALL_COMMAND, PLANS, PRESENTATION_LIMIT, PRODUCT } from '../../config'
 import { PageHeader, SiteShell } from './SiteShell'
 
 const TOC: [string, string][] = [
@@ -54,7 +54,8 @@ export function DocsPage() {
             <ol>
               <li>
                 <Link to="/signup" className="link">Create an account</Link> with your email and a password. You can import decks and write scripts
-                straight away; choose <strong>Standard</strong> or <strong>SI</strong> and pay with Razorpay to start presenting.
+                straight away (up to {PRESENTATION_LIMIT.none} presentations); choose <strong>Standard</strong> or <strong>SI</strong> and pay with Razorpay
+                to start presenting.
               </li>
               <li>
                 Open the <Link to="/app" className="link">web app</Link> in <strong>Chrome or Edge</strong> on a computer (or install the{' '}
@@ -86,8 +87,8 @@ export function DocsPage() {
               </li>
             </ul>
             <p>
-              Everything except presenting works without a plan: import decks, write and edit scripts, add sources and change settings. Presenting
-              (and the SI copilot) starts as soon as a plan is active.
+              Everything except presenting works without a plan: import decks (up to {PRESENTATION_LIMIT.none}), write and edit scripts, add sources and
+              change settings. Presenting (and the SI copilot) starts as soon as a plan is active.
             </p>
           </Doc>
 
@@ -268,28 +269,31 @@ export function DocsPage() {
             </p>
             <ul>
               <li>
-                <strong>Built-in AI</strong> — Claude, run by {PRODUCT}. Nothing to set up; up to {AI_DAILY_LIMIT} answers a day on SI.
+                <strong>Anthropic Claude, OpenAI, Google Gemini, Groq or OpenRouter</strong> — paste an API key from the provider's console.
               </li>
               <li>
-                <strong>Your own API key</strong> — Anthropic Claude, OpenAI, Google Gemini, Groq, OpenRouter, or <strong>Custom</strong>: any
-                OpenAI-compatible API such as Ollama, LM Studio, DeepSeek, Mistral or Together (enter its base URL, e.g. <code>http://localhost:11434/v1</code>).
+                <strong>Custom</strong> — any OpenAI-compatible API such as Ollama, LM Studio, DeepSeek, Mistral or Together (enter its base URL, e.g.{' '}
+                <code>http://localhost:11434/v1</code>).
               </li>
             </ul>
             <p>
-              Paste the key, pick a model (or type any model id), and press <strong>Test</strong>. Keys are stored only on your device and requests go
-              straight to the provider — they never pass through our servers. The provider bills you for that usage under its own terms. You can also set
-              the <strong>answer length</strong> and <strong>custom instructions</strong> (tone, facts to always mention) for every answer.
+              SI always runs on your own AI — {PRODUCT} has no built-in AI, so there are no daily caps and no markup. Paste the key, pick a model (or type
+              any model id), and press <strong>Test</strong>. While presenting, SI also offers a quick <strong>Connect your AI</strong> form until a key
+              is set. Keys are stored only on your device and requests go straight to the provider — they never pass through our servers. The provider
+              bills you for that usage under its own terms. You can also set the <strong>answer length</strong> and{' '}
+              <strong>custom instructions</strong> (tone, facts to always mention) for every answer.
             </p>
           </Doc>
 
           <Doc id="plans" title="Plans & billing">
             <ul>
               <li>
-                <strong>Standard (non-SI)</strong> — ${PLANS.standard_monthly.price}/month or ${PLANS.standard_yearly.price}/year. The teleprompter for
-                your own script, unlimited usage.
+                <strong>Standard (non-SI)</strong> — ${PLANS.standard_monthly.price}/month with {PRESENTATION_LIMIT.standard} presentations, or{' '}
+                ${PLANS.standard_yearly.price}/year with unlimited presentations. The teleprompter for your own script; presenting time is never limited.
               </li>
               <li>
-                <strong>SI</strong> — ${PLANS.si_monthly.price}/month or ${PLANS.si_yearly.price}/year. Standard plus the AI copilot and AI script drafts.
+                <strong>SI</strong> — ${PLANS.si_monthly.price}/month with {PRESENTATION_LIMIT.si} presentations, or ${PLANS.si_yearly.price}/year with
+                unlimited presentations and file uploads as sources. Standard plus the AI copilot and AI script drafts, on your own AI key.
               </li>
             </ul>
             <p>

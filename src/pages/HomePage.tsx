@@ -10,6 +10,7 @@ import { toast } from '../components/Toast'
 import { PRODUCT } from '../config'
 import { AccountChip } from '../features/account/AccountChip'
 import { PlanDashboard } from '../features/account/PlanDashboard'
+import { PresentationLimitDialog } from '../features/account/PresentationLimitDialog'
 import { entitlements, useAccount } from '../features/account/account'
 import { useFileDrop, useImportFlow } from '../features/presentation/useImport'
 import { useSettings } from '../features/settings/settingsStore'
@@ -30,9 +31,13 @@ import { formatDuration, formatRelative, plural } from '../utils/format'
 export function HomePage() {
   const navigate = useNavigate()
   const profile = useAccount((s) => s.profile)
-  // Presenting needs a plan; everything else here is open. (Desktop dev builds skip the check.)
-  const locked = !entitlements(profile).canPresent && !(platform.kind === 'desktop' && import.meta.env.DEV)
-  const { pick, start } = useImportFlow()
+  const ent = entitlements(profile)
+  // Desktop dev builds (self-tests) skip plan checks.
+  const devBypass = platform.kind === 'desktop' && import.meta.env.DEV
+  // Presenting needs a plan; everything else here is open.
+  const locked = !ent.canPresent && !devBypass
+  const [limitOpen, setLimitOpen] = useState(false)
+  const flow = useImportFlow()
   const wpm = useSettings((s) => s.settings.wordsPerMinute)
   const [items, setItems] = useState<Presentation[] | null>(null)
   const [query, setQuery] = useState('')
@@ -57,6 +62,16 @@ export function HomePage() {
     document.title = `Presentations · ${PRODUCT}`
   }, [])
 
+  // Each plan includes a number of presentations (any yearly plan: unlimited).
+  const full = !devBypass && items !== null && ent.presentationLimit !== null && items.length >= ent.presentationLimit
+  const withRoom =
+    <A extends unknown[]>(fn: (...args: A) => unknown) =>
+    (...args: A) => {
+      if (full) setLimitOpen(true)
+      else void fn(...args)
+    }
+  const pick = withRoom(flow.pick)
+  const start = withRoom(flow.start)
   const dragging = useFileDrop((paths) => start(paths[0]))
 
   const filtered = useMemo(() => {
@@ -67,14 +82,14 @@ export function HomePage() {
     )
   }, [items, query])
 
-  const newPresentation = async () => {
+  const newPresentation = withRoom(async () => {
     try {
       const p = await createBlankPresentation()
       navigate(`/edit/${p.id}`)
     } catch (e) {
       toast(errorMessage(e), 'error')
     }
-  }
+  })
 
   return (
     <div className="flex h-full flex-col">
@@ -103,7 +118,21 @@ export function HomePage() {
           <div className="mt-10 flex items-end justify-between gap-6">
             <div>
               <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Presentations</h1>
-              <p className="mt-1 text-[13.5px] text-muted">Your slides and speaking scripts stay on this device.</p>
+              <p className="mt-1 text-[13.5px] text-muted">
+                Your slides and speaking scripts stay on this device.
+                {items !== null && ent.presentationLimit !== null && !devBypass && (
+                  <>
+                    {' '}
+                    <span className={full ? 'text-warning' : ''}>
+                      {items.length} of {ent.presentationLimit} used
+                    </span>
+                    {' · '}
+                    <button type="button" onClick={() => setLimitOpen(true)} className="text-accent hover:underline">
+                      Unlimited with yearly
+                    </button>
+                  </>
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Button icon={<Plus size={15} />} onClick={newPresentation}>
@@ -167,6 +196,7 @@ export function HomePage() {
         </div>
       )}
 
+      <PresentationLimitDialog open={limitOpen} count={items?.length ?? 0} onClose={() => setLimitOpen(false)} />
       <SourcesDialog
         presentation={sourcesFor}
         onClose={() => setSourcesFor(null)}

@@ -68,12 +68,12 @@ export type ShortcutAction = 'next' | 'previous' | 'togglePause' | 'restart' | '
 
 export type HighlightStyle = 'pill' | 'underline' | 'color' | 'bold'
 
-/** Where SI copilot answers come from: the built-in AI, or the presenter's own API key. */
-export type AiProvider = 'reflex' | 'anthropic' | 'openai' | 'gemini' | 'groq' | 'openrouter' | 'custom'
-export type OwnKeyProvider = Exclude<AiProvider, 'reflex'>
+/** Where SI copilot answers come from: always the presenter's own AI provider and API key. */
+export type AiProvider = 'anthropic' | 'openai' | 'gemini' | 'groq' | 'openrouter' | 'custom'
+export type OwnKeyProvider = AiProvider
 
 export interface Settings {
-  version: 6
+  version: 7
   speech: {
     modelId: string
     deviceId: string | null

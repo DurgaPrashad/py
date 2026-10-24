@@ -1,10 +1,10 @@
-import { ArrowRight, Check, FileUp, Loader2, Lock, MonitorUp, Mic, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, FileUp, Infinity as InfinityIcon, Loader2, Lock, Mic, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PLANS, SITE_URL } from '../../config'
 import { useBuyPlan } from '../../pages/site/Pricing'
 import type { Presentation } from '../../types'
-import { PROVIDERS } from '../copilot/providers'
+import { ownKeyReady, PROVIDERS } from '../copilot/providers'
 import { useSettings } from '../settings/settingsStore'
 import { daysLeft, entitlements, useAccount } from './account'
 
@@ -20,7 +20,7 @@ export function PlanDashboard({ items }: { items: Presentation[] | null }) {
   const ready = useAccount((s) => s.ready)
   const session = useAccount((s) => s.session)
   const profile = useAccount((s) => s.profile)
-  const provider = useSettings((s) => s.settings.si.provider)
+  const si = useSettings((s) => s.settings.si)
   const ent = entitlements(profile)
   const { buy, busy } = useBuyPlan(null)
 
@@ -66,7 +66,7 @@ export function PlanDashboard({ items }: { items: Presentation[] | null }) {
             {busy === 'standard_monthly' && <Loader2 size={13} className="animate-spin" />} Standard · ${PLANS.standard_monthly.price}/mo
           </CardButton>
           <button type="button" onClick={() => navigate('/account')} className="flex items-center gap-1 px-1 text-[12.5px] text-muted hover:text-fg">
-            Yearly saves up to 50% <ArrowRight size={12} />
+            Yearly: unlimited presentations, up to 50% off <ArrowRight size={12} />
           </button>
         </div>
       </PlanCard>
@@ -84,16 +84,27 @@ export function PlanDashboard({ items }: { items: Presentation[] | null }) {
         </div>
         <p className="mt-3 text-[12.5px] text-muted">
           {ent.si ? (
-            <>
-              AI answers from <span className="text-fg">{provider === 'reflex' ? 'the built-in AI' : `${PROVIDERS[provider].label} (your key)`}</span>
-              {' · '}
-              <button type="button" onClick={() => navigate('/settings#si')} className="text-accent hover:underline">
-                Change
-              </button>
-            </>
+            ownKeyReady(si) ? (
+              <>
+                SI answers with <span className="text-fg">{PROVIDERS[si.provider].label}</span> (your key){' · '}
+                <button type="button" onClick={() => navigate('/settings#si')} className="text-accent hover:underline">
+                  Change
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-fg">One step left:</span> connect your AI so SI can answer.{' '}
+                <button type="button" onClick={() => navigate('/settings#si')} className="text-accent hover:underline">
+                  Connect AI
+                </button>
+              </>
+            )
           ) : (
-            'Unlimited presenting with your own script.'
+            'Your own script, following your voice.'
           )}
+        </p>
+        <p className="mt-1 text-[12.5px] text-subtle">
+          {ent.presentationLimit === null ? 'Unlimited presentations with your yearly plan.' : `${ent.presentationLimit} presentations included · unlimited on any yearly plan.`}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <CardButton onClick={() => navigate('/account')}>Extend or manage</CardButton>
@@ -112,16 +123,20 @@ export function PlanDashboard({ items }: { items: Presentation[] | null }) {
       <div className="grid gap-3 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         {card}
         <div className="grid grid-cols-2 gap-3">
-          <Stat value={decks.length} label="Presentations" />
+          <Stat
+            value={ent.presentationLimit === null ? decks.length : `${decks.length}/${ent.presentationLimit}`}
+            label={ent.presentationLimit === null ? 'Presentations · unlimited' : 'Presentations'}
+            warn={ent.presentationLimit !== null && decks.length >= ent.presentationLimit}
+          />
           <Stat value={slides} label="Slides" />
           <Stat value={slides ? `${scripted}/${slides}` : '0'} label="Slides with a script" />
           <Stat value={sources} label="SI sources" />
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Feature icon={<Mic size={15} />} title="Teleprompter that follows your voice" on={ent.standard} lockedLabel="With Standard or SI" />
-        <Feature icon={<MonitorUp size={15} />} title="Present on calls & second display" on={ent.standard} lockedLabel="With Standard or SI" />
+        <Feature icon={<Mic size={15} />} title="Teleprompter & presenting on calls" on={ent.standard} lockedLabel="With Standard or SI" />
         <Feature icon={<Sparkles size={15} />} title="SI live answers on calls" on={ent.si} lockedLabel="With SI" />
+        <Feature icon={<InfinityIcon size={15} />} title="Unlimited presentations" on={ent.yearly} lockedLabel="With any yearly plan" />
         <Feature icon={<FileUp size={15} />} title="Upload PDFs & docs as sources" on={ent.canUploadSources} lockedLabel="With SI yearly" />
       </div>
     </section>
@@ -160,10 +175,10 @@ function CardButton({ primary, disabled, onClick, children }: { primary?: boolea
   )
 }
 
-function Stat({ value, label }: { value: number | string; label: string }) {
+function Stat({ value, label, warn }: { value: number | string; label: string; warn?: boolean }) {
   return (
     <div className="rounded-2xl border border-line bg-surface px-4 py-3">
-      <div className="text-[22px] font-semibold tracking-tight tabular">{value}</div>
+      <div className={`text-[22px] font-semibold tracking-tight tabular ${warn ? 'text-warning' : ''}`}>{value}</div>
       <div className="mt-0.5 text-[12px] text-subtle">{label}</div>
     </div>
   )

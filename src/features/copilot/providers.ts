@@ -79,8 +79,8 @@ export interface CompletionRequest {
 
 /** Is this provider set up enough to try? */
 export function ownKeyReady(si: Settings['si']): boolean {
-  if (si.provider === 'reflex') return false
   const p = si.provider
+  if (!(p in PROVIDERS)) return false
   return !!si.models[p].trim() && (!!PROVIDERS[p].keyOptional || !!si.keys[p].trim()) && (p !== 'custom' || !!si.baseUrl.trim())
 }
 

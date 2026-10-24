@@ -6,9 +6,8 @@ import { Kbd, Segmented, Select, Slider, Toggle } from '../components/controls'
 import { TitleBar } from '../components/TitleBar'
 import { PRODUCT } from '../config'
 import { daysLeft, entitlements, useAccount } from '../features/account/account'
-import { builtInAvailable } from '../features/copilot/api'
 import { AnswerText, answerLayout } from '../features/copilot/AnswerText'
-import { complete, PROVIDERS } from '../features/copilot/providers'
+import { complete, ownKeyReady, PROVIDERS } from '../features/copilot/providers'
 import { DEFAULT_SETTINGS } from '../features/settings/defaults'
 import { useSettings } from '../features/settings/settingsStore'
 import { MicStatus } from '../features/speech/MicStatus'
@@ -557,21 +556,15 @@ function SiSection() {
   const session = useAccount((s) => s.session)
   const profile = useAccount((s) => s.profile)
   const ent = entitlements(profile)
-  const [builtIn, setBuiltIn] = useState<boolean | null>(null)
   const [showKey, setShowKey] = useState(false)
   const [test, setTest] = useState<{ state: 'idle' | 'running' | 'ok' | 'error'; message?: string }>({ state: 'idle' })
-  const own = si.provider === 'reflex' ? null : si.provider
+  const own = si.provider
+  const connected = ownKeyReady(si)
 
-  useEffect(() => {
-    if (!session) return
-    builtInAvailable()
-      .then(setBuiltIn)
-      .catch(() => setBuiltIn(false))
-  }, [session])
   useEffect(() => setTest({ state: 'idle' }), [si.provider])
 
-  const setKey = (v: string) => own && update('si', { keys: { ...si.keys, [own]: v } })
-  const setModel = (v: string) => own && update('si', { models: { ...si.models, [own]: v } })
+  const setKey = (v: string) => update('si', { keys: { ...si.keys, [own]: v } })
+  const setModel = (v: string) => update('si', { models: { ...si.models, [own]: v } })
 
   const runTest = async () => {
     setTest({ state: 'running' })
@@ -604,7 +597,7 @@ function SiSection() {
       <Link to="/account?plan=si_monthly" className="font-medium text-accent hover:underline">
         Get SI
       </Link>{' '}
-      for unlimited use.
+      for live answers on your calls.
     </>
   )
 
@@ -612,23 +605,35 @@ function SiSection() {
     <Section
       id="si"
       title="SI copilot"
-      description="Super Intelligence suggests answers to the questions people ask on your calls, from your deck and Q&A prep notes. Use the built-in AI, or connect any AI provider with your own API key."
+      description="Super Intelligence suggests answers to the questions people ask on your calls, from your deck, notes and sources. It runs on your own AI: connect a provider with your API key — no daily caps, no markup, and your key never leaves this device."
     >
       <div className="flex items-center gap-2.5 py-3.5 text-[13px] text-muted">
         <Sparkles size={15} className="shrink-0 text-accent" />
         <span>{planLine}</span>
       </div>
+      <div
+        className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-[12.5px] leading-snug ${
+          connected ? 'border-success/30 bg-success/8 text-fg' : 'border-accent/30 bg-accent-soft text-fg'
+        }`}
+      >
+        {connected ? <Check size={14} className="shrink-0 text-success" /> : <PlugZap size={14} className="shrink-0 text-accent" />}
+        <span>
+          {connected ? (
+            <>
+              Connected to <b className="font-medium">{PROVIDERS[own].label}</b> · {si.models[own]}. Press Test to check it.
+            </>
+          ) : (
+            <>
+              <b className="font-medium">Connect your AI to get answers.</b> Pick a provider, paste its API key and press Test — about a minute. You pay the
+              provider directly, at their rates.
+            </>
+          )}
+        </span>
+      </div>
 
       <div className="py-4">
         <div className="mb-2.5 text-[13.5px]">AI provider</div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <ProviderCard
-            active={si.provider === 'reflex'}
-            title="Built-in AI"
-            subtitle={builtIn === null ? 'Claude, no key needed' : builtIn ? 'Ready · no key needed' : 'Not switched on yet'}
-            warn={builtIn === false}
-            onClick={() => update('si', { provider: 'reflex' })}
-          />
           {PROVIDER_ORDER.map((p) => (
             <ProviderCard
               key={p}
@@ -642,8 +647,7 @@ function SiSection() {
         </div>
       </div>
 
-      {own ? (
-        <>
+      <>
           <Row label="API key" hint={`Stored only on this device. Requests go straight from here to ${PROVIDERS[own].label}; the key never reaches our servers.`}>
             <div className="flex w-full items-center gap-1.5">
               <input
@@ -720,13 +724,6 @@ function SiSection() {
             </div>
           </div>
         </>
-      ) : (
-        builtIn === false && (
-          <div className="py-3.5 text-[12.5px] leading-relaxed text-warning">
-            The built-in AI isn't switched on for this site yet — choose a provider above and add your own API key.
-          </div>
-        )
-      )}
 
       <Row label="Answer length" hint="How much the copilot writes for each question.">
         <Segmented

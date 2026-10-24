@@ -30,7 +30,11 @@ export const PLANS: Record<PlanId, PlanInfo> = {
 
 export const TIER_NAME: Record<Tier, string> = { standard: 'Standard', si: 'SI' }
 
-/** Must match private.settings in the database. There is no free trial: presenting needs Standard or SI, AI answers need SI. */
-export const AI_DAILY_LIMIT = 300
+/**
+ * How many presentations each plan includes. Any yearly plan is unlimited.
+ * Without a plan you can set up as many as the smallest plan includes, so
+ * whichever plan you then buy, nothing you made is over its limit.
+ */
+export const PRESENTATION_LIMIT = { none: 5, standard: 5, si: 10 } as const
 
 export const planFor = (tier: Tier, interval: 'month' | 'year'): PlanId => `${tier}_${interval === 'month' ? 'monthly' : 'yearly'}`

@@ -1,6 +1,6 @@
 import type { Settings } from '../../types'
 
-/** Mirrors the built-in AI's prompts in supabase/migrations (ask_copilot). */
+/** System prompts for SI, sent to the presenter's own AI provider. */
 const ANSWER = `You are a live Q&A copilot for someone presenting on a video call - an investor pitch, a client demo, a webinar or an interview. Someone on the call has just asked a question. Using only the presenter's material (deck text, speaking scripts, notes, prep notes and sources), write what the presenter could say back.
 
 How to answer:
@@ -27,7 +27,7 @@ const LENGTH: Record<Settings['si']['answerLength'], { answer: string; script: s
 
 export type CopilotMode = 'answer' | 'script' | 'suggest'
 
-/** The presenter's preferences, as one block of text (sent to the built-in AI too). */
+/** The presenter's preferences, as one block of text. */
 export function stylePreferences(si: Settings['si'], mode: CopilotMode): string {
   if (mode === 'suggest') return ''
   return [LENGTH[si.answerLength][mode], si.instructions.trim()].filter(Boolean).join('\n')

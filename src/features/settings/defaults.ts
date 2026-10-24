@@ -3,7 +3,7 @@ import { isTauri } from '../../services/tauri'
 import type { Settings } from '../../types'
 
 export const DEFAULT_SETTINGS: Settings = {
-  version: 6,
+  version: 7,
   speech: {
     // The browser runs Whisper on WebGPU; Tiny keeps updates live there.
     modelId: isTauri() ? 'base.en' : 'tiny.en',
@@ -55,7 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   wordsPerMinute: 140,
   si: {
-    provider: 'reflex',
+    provider: 'anthropic',
     keys: { anthropic: '', openai: '', gemini: '', groq: '', openrouter: '', custom: '' },
     models: {
       anthropic: 'claude-opus-5-5',
@@ -129,5 +129,7 @@ function migrate(s: Settings, from: number): Settings {
     // The top bar became the default layout; "under camera" stays one click away.
     if (s.teleprompter.position === 'camera') s = { ...s, teleprompter: { ...s.teleprompter, position: 'top' } }
   }
+  // There is no built-in AI any more: SI always uses the presenter's own key.
+  if (!(s.si.provider in DEFAULT_SETTINGS.si.keys)) s = { ...s, si: { ...s.si, provider: DEFAULT_SETTINGS.si.provider } }
   return { ...s, version: DEFAULT_SETTINGS.version }
 }

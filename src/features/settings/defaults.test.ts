@@ -9,7 +9,7 @@ describe('settings migration', () => {
       teleprompter: { ...DEFAULT_SETTINGS.teleprompter, position: 'top', width: 88, transitionMs: 260, fontSize: 52 },
     }
     const s = mergeSettings(v1)
-    expect(s.version).toBe(6)
+    expect(s.version).toBe(7)
     expect(s.speech.stepMs).toBe(150)
     expect(s.speech.windowMs).toBe(8000)
     expect(s.teleprompter.position).toBe('top')
@@ -22,6 +22,11 @@ describe('settings migration', () => {
     const s = mergeSettings({ version: 2, teleprompter: { ...DEFAULT_SETTINGS.teleprompter, position: 'camera' } })
     expect(s.teleprompter.position).toBe('top')
     expect(mergeSettings({ version: 3, teleprompter: { ...DEFAULT_SETTINGS.teleprompter, position: 'camera' } }).teleprompter.position).toBe('camera')
+  })
+
+  it('moves the retired built-in AI to an own-key provider', () => {
+    expect(mergeSettings({ version: 6, si: { ...DEFAULT_SETTINGS.si, provider: 'reflex' } }).si.provider).toBe('anthropic')
+    expect(mergeSettings({ version: 6, si: { ...DEFAULT_SETTINGS.si, provider: 'groq' } }).si.provider).toBe('groq')
   })
 
   it('keeps a deliberately chosen top strip', () => {

@@ -1,12 +1,13 @@
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, GripVertical, Headphones, Loader2, MessageSquare, Mic, RefreshCw, RotateCcw, Send, Sparkles, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, GripVertical, Headphones, Loader2, MessageSquare, Mic, PlugZap, RefreshCw, RotateCcw, Send, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Button } from '../../components/Button'
-import { SITE_URL } from '../../config'
+import { PLANS, SITE_URL } from '../../config'
 import { platform } from '../../platform'
-import type { HighlightStyle } from '../../types'
+import type { HighlightStyle, OwnKeyProvider } from '../../types'
 import { entitlements, useAccount } from '../account/account'
 import { useSettings } from '../settings/settingsStore'
 import { AnswerText } from './AnswerText'
+import { ownKeyReady, PROVIDERS } from './providers'
 import type { Copilot, QA } from './useCopilot'
 
 /** Opens a site page without leaving the presentation. */
@@ -49,6 +50,9 @@ export function SiPanel({
   const [draft, setDraft] = useState('')
   const input = useRef<HTMLInputElement>(null)
   const canAsk = !!session && ent.canAsk
+  // SI runs on the presenter's own AI: until a key is connected, the panel offers to connect one.
+  const aiReady = ownKeyReady(si)
+  const [connecting, setConnecting] = useState(false)
   const listening = copilot.listen === 'listening'
   const q = copilot.current
 
@@ -131,9 +135,11 @@ export function SiPanel({
         {platform.kind === 'web' ? (
           <button
             type="button"
-            disabled={!canAsk || copilot.listen === 'starting'}
+            disabled={!canAsk || !aiReady || copilot.listen === 'starting'}
             onClick={() => void (listening ? copilot.stopListening() : copilot.startListening())}
-            title={listening ? 'Stop listening to the call' : 'Listen to the call — share the meeting tab with “Also share tab audio”'}
+            title={
+              !aiReady ? 'Connect your AI first' : listening ? 'Stop listening to the call' : 'Listen to the call — share the meeting tab with “Also share tab audio”'
+            }
             className={`flex h-7 w-7 items-center justify-center rounded-lg transition disabled:opacity-35 ${
               listening ? 'bg-teal-400/15 text-teal-300' : 'text-white/60 hover:bg-white/10 hover:text-white'
             }`}
@@ -157,7 +163,7 @@ export function SiPanel({
           {!compact && state.label}
         </span>
         <div className="flex-1" />
-        {canAsk && (
+        {canAsk && aiReady && (
           <>
             <HeaderButton active={asking} title="Type a question" onClick={() => setAsking((v) => !v)}>
               Ask
@@ -194,12 +200,22 @@ export function SiPanel({
           {!canAsk ? (
             <div className="flex flex-wrap items-center gap-3">
               <p className="flex-1 text-[12.5px] leading-relaxed text-white/70">
-                {!session ? 'Sign in to use SI — it hears questions on your call and tells you what to answer.' : 'Live answers come with the SI plan ($9/month or $69/year).'}
+                {!session
+                  ? 'Sign in to use SI — it hears questions on your call and tells you what to answer.'
+                  : `Live answers come with the SI plan ($${PLANS.si_monthly.price}/month or $${PLANS.si_yearly.price}/year).`}
               </p>
               <Button size="sm" variant="primary" onClick={() => openSite(session ? '/account?plan=si_monthly' : '/login')}>
                 {session ? 'Upgrade to SI' : 'Sign in'}
               </Button>
             </div>
+          ) : !aiReady || connecting ? (
+            <ConnectAi
+              onDone={() => {
+                setConnecting(false)
+                // A question that failed for want of a key gets its answer now.
+                if (q?.status === 'error' && q.code === 'AI_NOT_CONFIGURED') copilot.answerItem(q)
+              }}
+            />
           ) : (
             <div className="flex flex-col gap-2">
               {copilot.notice && (
@@ -218,7 +234,14 @@ export function SiPanel({
               {asking ? (
                 <AskBox copilot={copilot} draft={draft} setDraft={setDraft} submit={submit} input={input} close={() => setAsking(false)} />
               ) : q ? (
-                <QuestionAnswer q={q} copilot={copilot} textSize={si.textSize} highlight={si.highlightStyle} transitionMs={transitionMs} />
+                <QuestionAnswer
+                  q={q}
+                  copilot={copilot}
+                  textSize={si.textSize}
+                  highlight={si.highlightStyle}
+                  transitionMs={transitionMs}
+                  onConnect={() => setConnecting(true)}
+                />
               ) : (
                 !(listening && copilot.heard.partial) && (
                   <p className="text-[12.5px] leading-relaxed text-white/50">
@@ -234,6 +257,81 @@ export function SiPanel({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+const QUICK_PROVIDERS: OwnKeyProvider[] = ['anthropic', 'openai', 'gemini', 'groq', 'openrouter']
+
+/** Connect an AI provider without leaving the presentation: pick one, paste the key. */
+function ConnectAi({ onDone }: { onDone: () => void }) {
+  const si = useSettings((s) => s.settings.si)
+  const update = useSettings((s) => s.update)
+  const [provider, setProvider] = useState<OwnKeyProvider>(QUICK_PROVIDERS.includes(si.provider) ? si.provider : 'anthropic')
+  const [key, setKey] = useState(() => si.keys[provider])
+  const info = PROVIDERS[provider]
+  const save = () => {
+    if (!key.trim()) return
+    update('si', { provider, keys: { ...si.keys, [provider]: key.trim() } })
+    onDone()
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="flex items-start gap-2 text-[12.5px] leading-relaxed text-white/70">
+        <PlugZap size={14} className="mt-0.5 shrink-0 text-orange-300" />
+        <span>
+          <b className="font-semibold text-white">Connect your AI to get answers.</b> Paste an API key — it stays on this device, and you pay the provider
+          directly, with no daily cap.
+        </span>
+      </p>
+      <form
+        className="flex items-center gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault()
+          save()
+        }}
+      >
+        <select
+          value={provider}
+          onChange={(e) => {
+            const p = e.target.value as OwnKeyProvider
+            setProvider(p)
+            setKey(si.keys[p])
+          }}
+          className="h-8 shrink-0 rounded-lg border border-white/10 bg-[#202127] px-2 text-[12.5px] text-white outline-none focus:border-orange-400/50"
+        >
+          {QUICK_PROVIDERS.map((p) => (
+            <option key={p} value={p}>
+              {PROVIDERS[p].label}
+            </option>
+          ))}
+        </select>
+        <input
+          type="password"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder={info.keyPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
+          className="h-8 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 font-mono text-[12px] text-white outline-none placeholder:font-sans placeholder:text-white/35 focus:border-orange-400/50"
+        />
+        <Button size="sm" variant="primary" type="submit" disabled={!key.trim()}>
+          Connect
+        </Button>
+      </form>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-white/45">
+        {info.keyUrl && (
+          <button type="button" onClick={() => void platform.openExternal(info.keyUrl!).catch(() => null)} className="flex items-center gap-1 hover:text-white">
+            Get an API key from {info.label.replace(/ \(.*\)$/, '')} <ExternalLink size={11} />
+          </button>
+        )}
+        <span>Other providers and a connection test: Settings → SI</span>
+        {ownKeyReady(si) && (
+          <button type="button" onClick={onDone} className="ml-auto hover:text-white">
+            Cancel
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -307,7 +405,21 @@ function AskBox({
   )
 }
 
-function QuestionAnswer({ q, copilot, textSize, highlight, transitionMs }: { q: QA; copilot: Copilot; textSize: number; highlight: HighlightStyle; transitionMs: number }) {
+function QuestionAnswer({
+  q,
+  copilot,
+  textSize,
+  highlight,
+  transitionMs,
+  onConnect,
+}: {
+  q: QA
+  copilot: Copilot
+  textSize: number
+  highlight: HighlightStyle
+  transitionMs: number
+  onConnect: () => void
+}) {
   return (
     <div className="flex flex-col gap-2">
       <p className="flex items-start gap-2 leading-snug text-white/75" style={{ fontSize: Math.max(11.5, textSize - 0.5) }}>
@@ -322,8 +434,8 @@ function QuestionAnswer({ q, copilot, textSize, highlight, transitionMs }: { q: 
               Upgrade
             </Button>
           ) : q.code === 'AI_NOT_CONFIGURED' ? (
-            <Button size="sm" variant="primary" onClick={() => openSite('/settings#si')}>
-              Add API key
+            <Button size="sm" variant="primary" onClick={onConnect}>
+              Connect AI
             </Button>
           ) : (
             <IconButton title="Try again" onClick={() => copilot.answerItem(q)}>

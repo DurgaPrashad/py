@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { AI_DAILY_LIMIT, PLANS, PRODUCT, SITE_URL } from '../../config'
+import { PLANS, PRESENTATION_LIMIT, PRODUCT, SITE_URL } from '../../config'
 import { PageHeader, SiteShell } from './SiteShell'
 
 const UPDATED = '24 October 2026'
@@ -63,8 +63,8 @@ export function PrivacyPage() {
         </li>
         <li>
           <strong>SI copilot requests:</strong> when you ask the copilot (or it detects a question on your call), the question text and the relevant text
-          of your deck, scripts and Q&A prep notes are sent to an AI provider to generate the answer — our built-in provider, or the provider you
-          chose in Settings → SI. We do not store the questions or answers; we keep only a count of requests to apply plan limits.
+          of your deck, scripts, Q&A prep notes and sources are sent from your device to the AI provider you connected in Settings → SI to generate
+          the answer. We do not receive or store the questions or answers; we keep only a count of requests to check your plan.
         </li>
         <li>
           <strong>Your own AI API keys:</strong> if you add an API key for a provider such as OpenAI, Anthropic or Google in Settings → SI, it is
@@ -100,12 +100,8 @@ export function PrivacyPage() {
             <td>Payment processing</td>
           </tr>
           <tr>
-            <td>Anthropic (Claude API)</td>
-            <td>Generating SI copilot answers and AI script drafts with the built-in AI</td>
-          </tr>
-          <tr>
-            <td>The AI provider you choose</td>
-            <td>Only if you add your own API key in Settings → SI; requests go straight from your device to it</td>
+            <td>The AI provider you connect</td>
+            <td>SI answers and AI script drafts, with your own API key; requests go straight from your device to it, under its terms</td>
           </tr>
           <tr>
             <td>Vercel</td>
@@ -172,17 +168,25 @@ export function TermsPage() {
       </p>
 
       <h2>3. Plans</h2>
-      <p>There is no free plan or trial: using the Service requires one of these paid plans.</p>
+      <p>
+        There is no free plan or trial: presenting requires one of these paid plans. Without a plan you can prepare up to {PRESENTATION_LIMIT.none}{' '}
+        presentations.
+      </p>
       <ul>
         <li>
-          <strong>Standard (non-SI)</strong> — {price('standard_monthly')} per month or {price('standard_yearly')} per year: the teleprompter for your own
-          script, with unlimited usage during the period you paid for.
+          <strong>Standard (non-SI)</strong> — {price('standard_monthly')} per month, including up to {PRESENTATION_LIMIT.standard} presentations, or{' '}
+          {price('standard_yearly')} per year with unlimited presentations: the teleprompter for your own script, with unlimited presenting time during
+          the period you paid for.
         </li>
         <li>
-          <strong>SI (Super Intelligence)</strong> — {price('si_monthly')} per month or {price('si_yearly')} per year: everything in Standard plus the AI
-          copilot, with fair use of up to {AI_DAILY_LIMIT} AI answers per day.
+          <strong>SI (Super Intelligence)</strong> — {price('si_monthly')} per month, including up to {PRESENTATION_LIMIT.si} presentations, or{' '}
+          {price('si_yearly')} per year with unlimited presentations and file uploads as sources: everything in Standard plus the AI copilot.
         </li>
       </ul>
+      <p>
+        The AI copilot runs on an AI provider account of your own (for example Anthropic, OpenAI or Google): you connect it with your API key, and that
+        provider's terms and charges apply to your usage. The plan price does not include AI usage.
+      </p>
 
       <h2>4. Payment</h2>
       <p>

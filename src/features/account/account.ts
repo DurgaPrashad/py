@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { create } from 'zustand'
+import { PRESENTATION_LIMIT } from '../../config'
 import { supabase, supabaseMessage } from '../../services/supabase'
 
 /** public.profiles — one row per account. */
@@ -12,6 +13,8 @@ export interface Profile {
   si_until: string | null
   /** SI yearly plan: unlocks uploading files as sources. */
   si_yearly_until: string | null
+  /** Any yearly plan (Standard or SI): unlimited presentations. */
+  yearly_until: string | null
   ai_answers_used: number
   created_at: string
 }
@@ -70,12 +73,25 @@ export const useAccount = create<AccountState>((set, get) => ({
     if (!user) return null
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
     if (error) throw new Error(supabaseMessage(error))
-    set({ profile: data as Profile | null })
-    return data as Profile | null
+    const profile = data as Profile | null
+    // Databases without the yearly_until column yet: work it out from the payments.
+    if (profile && profile.yearly_until === undefined) {
+      const { data: pays } = await supabase
+        .from('payments')
+        .select('period_end')
+        .eq('status', 'paid')
+        .in('plan', ['standard_yearly', 'si_yearly'])
+        .order('period_end', { ascending: false })
+        .limit(1)
+      profile.yearly_until = (pays?.[0] as { period_end?: string } | undefined)?.period_end ?? null
+    }
+    set({ profile })
+    return profile
   },
 
   setProfile(p) {
     set({ profile: p })
+    if (p && p.yearly_until === undefined) void get().refresh().catch(() => null)
   },
 
   async signIn(email, password) {
@@ -97,12 +113,13 @@ export const useAccount = create<AccountState>((set, get) => ({
   },
 }))
 
-const after = (iso: string | null) => (iso ? Date.parse(iso) > Date.now() : false)
+const after = (iso: string | null | undefined) => (iso ? Date.parse(iso) > Date.now() : false)
 
 /** What an account can use right now. */
 export function entitlements(p: Profile | null) {
-  const si = after(p?.si_until ?? null)
-  const standard = si || after(p?.standard_until ?? null)
+  const si = after(p?.si_until)
+  const standard = si || after(p?.standard_until)
+  const yearly = after(p?.yearly_until) || after(p?.si_yearly_until)
   return {
     si,
     standard,
@@ -112,6 +129,10 @@ export function entitlements(p: Profile | null) {
     canAsk: si,
     /** Upload PDFs / documents as SI sources (SI yearly plan). */
     canUploadSources: after(p?.si_yearly_until ?? null),
+    /** A yearly plan is active. */
+    yearly,
+    /** Presentations this account can have; null = unlimited (any yearly plan). */
+    presentationLimit: yearly ? null : si ? PRESENTATION_LIMIT.si : standard ? PRESENTATION_LIMIT.standard : PRESENTATION_LIMIT.none,
     planName: si ? 'SI' : standard ? 'Standard' : 'No plan yet',
   }
 }
