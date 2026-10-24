@@ -5,7 +5,7 @@
  */
 import { db } from './_lib/db.js'
 import { env, handle, json, preflight, relatedEnvNames } from './_lib/http.js'
-import { razorpay } from './_lib/razorpay.js'
+import { razorpay, razorpayKeys } from './_lib/razorpay.js'
 import { PROJECT_REF } from './_lib/supabase.js'
 
 export const OPTIONS = preflight
@@ -27,13 +27,13 @@ function databaseProject(url: string | undefined): string | null {
 
 export function GET(): Promise<Response> {
   return handle(async () => {
-    const keyId = env('RAZORPAY_KEY_ID')
-    const razorpayReady = !!keyId && !!env('RAZORPAY_KEY_SECRET')
+    const keys = await razorpayKeys().catch(() => null)
     const payments = {
-      RAZORPAY_KEY_ID: !!keyId,
+      RAZORPAY_KEY_ID: !!env('RAZORPAY_KEY_ID'),
       RAZORPAY_KEY_SECRET: !!env('RAZORPAY_KEY_SECRET'),
-      live_mode: keyId?.startsWith('rzp_live_') ?? false,
-      razorpay_login: razorpayReady ? await check(() => razorpay('GET', '/orders?count=1')) : 'missing RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET',
+      razorpay_keys_from: keys?.source ?? 'missing — set RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET in Vercel, or save them in Supabase Vault',
+      live_mode: keys?.id.startsWith('rzp_live_') ?? false,
+      razorpay_login: keys ? await check(() => razorpay('GET', '/orders?count=1')) : 'missing Razorpay keys',
       DATABASE_URL: !!env('DATABASE_URL'),
       database_connection: env('DATABASE_URL') ? await check(() => db()`select 1`) : 'missing DATABASE_URL',
       // The database must be the same Supabase project the website uses, with Present's tables in it.

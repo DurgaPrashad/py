@@ -1,22 +1,18 @@
 import { createHmac } from 'node:crypto'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { validCheckoutSignature, validWebhookSignature } from './razorpay.js'
 
 const SECRET = 'test_secret_for_unit_tests'
 
 describe('Razorpay signatures', () => {
-  beforeAll(() => {
-    process.env.RAZORPAY_KEY_SECRET = SECRET
-  })
-
   it('accepts a genuine checkout signature and rejects forgeries', () => {
     const good = createHmac('sha256', SECRET).update('order_ABC|pay_XYZ').digest('hex')
-    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', good)).toBe(true)
-    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', good.toUpperCase())).toBe(true)
-    expect(validCheckoutSignature('order_ABC', 'pay_OTHER', good)).toBe(false)
-    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', 'deadbeef')).toBe(false)
-    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', 'not-hex')).toBe(false)
-    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', '')).toBe(false)
+    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', good, SECRET)).toBe(true)
+    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', good.toUpperCase(), SECRET)).toBe(true)
+    expect(validCheckoutSignature('order_ABC', 'pay_OTHER', good, SECRET)).toBe(false)
+    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', 'deadbeef', SECRET)).toBe(false)
+    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', 'not-hex', SECRET)).toBe(false)
+    expect(validCheckoutSignature('order_ABC', 'pay_XYZ', '', SECRET)).toBe(false)
   })
 
   it('checks webhook bodies byte for byte', () => {

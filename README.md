@@ -28,9 +28,9 @@ There is no free plan or trial: after signing up, the app shows a plan picker an
 
   | Variable | Needed for | Where to get it |
   | --- | --- | --- |
-  | `RAZORPAY_KEY_ID` | Payments | Razorpay Dashboard → API Keys |
-  | `RAZORPAY_KEY_SECRET` | Payments | Razorpay Dashboard → API Keys |
-  | `DATABASE_URL` | Payments | Supabase → Connect → *Transaction pooler* (port 6543); URL-encode the password (`@` → `%40`) |
+  | `RAZORPAY_KEY_ID` | Payments (or Supabase Vault secret `razorpay_key_id`) | Razorpay Dashboard → API Keys |
+  | `RAZORPAY_KEY_SECRET` | Payments (or Supabase Vault secret `razorpay_key_secret`) | Razorpay Dashboard → API Keys |
+  | `DATABASE_URL` | Payments | Supabase → Connect → *Transaction pooler* (port 6543). `POSTGRES_URL` from Vercel's Supabase integration works too |
   | `RAZORPAY_WEBHOOK_SECRET` | Webhook (recommended) | Razorpay → Webhooks → URL `https://present.waspid.com/api/razorpay-webhook`, events `payment.captured`, `order.paid` |
   | `ANTHROPIC_API_KEY` | Built-in AI (optional) | console.anthropic.com → API keys |
   | `AI_MODEL`, `AI_EFFORT` | Optional | default `claude-opus-5-5`, `low` |

@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto'
 import { db, profileOf } from './_lib/db.js'
 import { handle, HttpError, json, preflight, readJson } from './_lib/http.js'
-import { keyId, razorpay } from './_lib/razorpay.js'
+import { razorpay, razorpayKeys } from './_lib/razorpay.js'
 import { requireUser } from './_lib/supabase.js'
 
 interface Plan {
@@ -37,7 +37,7 @@ export function POST(request: Request): Promise<Response> {
       values (${user.id}, ${plan.id}, ${plan.amount}, ${plan.currency}, ${order.id})`
 
     return json({
-      key_id: keyId(),
+      key_id: (await razorpayKeys()).id,
       order_id: order.id,
       amount: plan.amount,
       currency: plan.currency,

@@ -1,13 +1,46 @@
 /// <reference types="node" />
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { db, type PaymentRow } from './db.js'
-import { HttpError, requireEnv } from './http.js'
+import { env, HttpError } from './http.js'
 
-export const keyId = () => requireEnv('RAZORPAY_KEY_ID')
+export interface RazorpayKeys {
+  id: string
+  secret: string
+  /** Where they came from, for /api/health. */
+  source: 'environment' | 'supabase vault'
+}
 
-/** Calls the Razorpay REST API with the key pair from the environment. */
+let vaultKeys: RazorpayKeys | null = null
+
+/**
+ * The Razorpay key pair: from the environment (RAZORPAY_KEY_ID /
+ * RAZORPAY_KEY_SECRET), or else from Supabase Vault (secrets named
+ * razorpay_key_id / razorpay_key_secret), read over DATABASE_URL.
+ */
+export async function razorpayKeys(): Promise<RazorpayKeys> {
+  const id = env('RAZORPAY_KEY_ID')
+  const secret = env('RAZORPAY_KEY_SECRET')
+  if (id && secret) return { id, secret, source: 'environment' }
+  if (vaultKeys) return vaultKeys
+  if (env('DATABASE_URL')) {
+    const rows = await db()<{ name: string; secret: string }[]>`
+      select name, decrypted_secret as secret from vault.decrypted_secrets where name in ('razorpay_key_id', 'razorpay_key_secret')`
+    const get = (n: string) => rows.find((r) => r.name === n)?.secret?.trim()
+    const vid = get('razorpay_key_id')
+    const vsecret = get('razorpay_key_secret')
+    if (vid && vsecret) return (vaultKeys = { id: vid, secret: vsecret, source: 'supabase vault' })
+  }
+  throw new HttpError(
+    503,
+    "Payments aren't set up on the server yet: add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Vercel → Settings → Environment Variables (Production) and redeploy, or save them in Supabase Vault. Check /api/health.",
+    'NOT_CONFIGURED',
+  )
+}
+
+/** Calls the Razorpay REST API with the configured key pair. */
 export async function razorpay<T = Record<string, unknown>>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
-  const auth = Buffer.from(`${keyId()}:${requireEnv('RAZORPAY_KEY_SECRET')}`).toString('base64')
+  const keys = await razorpayKeys()
+  const auth = Buffer.from(`${keys.id}:${keys.secret}`).toString('base64')
   const res = await fetch(`https://api.razorpay.com/v1${path}`, {
     method,
     headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
@@ -25,8 +58,8 @@ function safeEqualHex(a: string, b: string): boolean {
 }
 
 /** Checkout's signature: HMAC-SHA256(order_id|payment_id) with the key secret. */
-export function validCheckoutSignature(orderId: string, paymentId: string, signature: string): boolean {
-  const expected = createHmac('sha256', requireEnv('RAZORPAY_KEY_SECRET')).update(`${orderId}|${paymentId}`).digest('hex')
+export function validCheckoutSignature(orderId: string, paymentId: string, signature: string, secret: string): boolean {
+  const expected = createHmac('sha256', secret).update(`${orderId}|${paymentId}`).digest('hex')
   return /^[0-9a-f]+$/i.test(signature) && safeEqualHex(expected, signature.toLowerCase())
 }
 
