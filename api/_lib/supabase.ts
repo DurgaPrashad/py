@@ -1,9 +1,11 @@
 import { env, HttpError } from './http.js'
 
-// Public values (the same ones the browser uses); override per environment if needed.
-export const SUPABASE_URL = env('SUPABASE_URL') ?? env('VITE_SUPABASE_URL') ?? 'https://jppzpzdsotywshwbnknn.supabase.co'
-export const SUPABASE_PUBLISHABLE_KEY =
-  env('SUPABASE_PUBLISHABLE_KEY') ?? env('VITE_SUPABASE_PUBLISHABLE_KEY') ?? 'sb_publishable_4CATCnaALMxUuwC4HMniVQ_aBp9kBvd'
+// Exactly the project the website signs people in to (src/config.ts). Generic
+// SUPABASE_URL variables from Vercel integrations are ignored on purpose: they
+// may belong to another project, and sign-in tokens only work with this one.
+export const SUPABASE_URL = env('VITE_SUPABASE_URL') ?? 'https://jppzpzdsotywshwbnknn.supabase.co'
+export const SUPABASE_PUBLISHABLE_KEY = env('VITE_SUPABASE_PUBLISHABLE_KEY') ?? 'sb_publishable_4CATCnaALMxUuwC4HMniVQ_aBp9kBvd'
+export const PROJECT_REF = /^https:\/\/([a-z0-9]+)\.supabase\.co/.exec(SUPABASE_URL)?.[1] ?? null
 
 export interface User {
   id: string
