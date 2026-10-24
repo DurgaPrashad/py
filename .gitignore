@@ -31,3 +31,6 @@ public/__dev__
 .env
 .env*.local
 .vercel
+
+# Marketing assets (generated locally)
+launch/
