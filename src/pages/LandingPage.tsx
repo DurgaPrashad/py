@@ -370,9 +370,9 @@ function CopilotSection() {
         </div>
         <div className="dark rounded-3xl border border-slate-900/10 bg-[#0e0e12] p-5 text-white shadow-[0_30px_100px_-20px_rgba(15,23,42,0.5)] sm:p-6">
           <div className="flex items-center gap-2 text-[13px] font-semibold">
-            <Sparkles size={14} className="text-orange-400" /> SI copilot
-            <span className="ml-auto flex items-center gap-1.5 rounded-full bg-red-500/10 px-2.5 py-1 text-[11px] font-normal text-red-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-400" /> Listening to the call
+            <Sparkles size={14} className="text-orange-400" /> SI
+            <span className="ml-auto flex items-center gap-1.5 rounded-full bg-teal-400/10 px-2.5 py-1 text-[11px] font-normal text-teal-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-teal-400" /> Listening to the call
             </span>
           </div>
           <MockQA q="What does your customer acquisition cost look like right now?">
