@@ -72,6 +72,11 @@ export function PresentPage() {
   const engine = useSpeechEngine(!!p && voiceEnabled, settings.speech)
   const copilot = useCopilot(p, slideIndex, settings.speech.modelId)
   const [copilotOpen, setCopilotOpen] = useState(false)
+  // For handlers registered once (speech, keyboard).
+  const copilotRef = useRef(copilot)
+  useLayoutEffect(() => {
+    copilotRef.current = copilot
+  })
 
   useEffect(() => {
     loadPresentation(id)
@@ -166,6 +171,8 @@ export function PresentPage() {
   // Recognizer -> alignment -> teleprompter.
   useEffect(() => {
     const unlisten = speech.onTranscript((e) => {
+      // Reading an SI answer aloud moves its highlight too.
+      copilotRef.current.onPresenterSpeech(e)
       const s = session.current
       if (!s) return
       const r = s.handle(e)
@@ -203,6 +210,17 @@ export function PresentPage() {
       const a = actions.current
       const sc = settings.shortcuts
       const code = e.code
+      // SI: ⌘↵ answers what was just asked; ⌘← / ⌘→ step through answers.
+      if (e.metaKey || e.ctrlKey) {
+        if (code === 'Enter') {
+          setCopilotOpen(true)
+          copilotRef.current.answerNow()
+        } else if (code === 'ArrowLeft') copilotRef.current.older()
+        else if (code === 'ArrowRight') copilotRef.current.newer()
+        else return
+        e.preventDefault()
+        return
+      }
       if (code === sc.next || code === 'PageDown') a.goTo(a.slideIndex + 1)
       else if (code === sc.previous || code === 'PageUp') a.goTo(a.slideIndex - 1)
       else if (code === sc.togglePause) {
@@ -565,7 +583,6 @@ export function PresentPage() {
   const si = settings.si
   const sidePanel = copilotOpen && !deckOnly && si.panel === 'side'
   const topPanel = copilotOpen && !deckOnly && si.panel === 'top'
-  const panelBg = `rgb(8 8 10 / ${Math.round(si.opacity * 100)}%)`
   // The top box sits right under the text bar (or the under-camera strip).
   const topPanelTop = (camera ? camTop + stripH : tp.position === 'top' ? stripH : 0) + 10
   const topPanelW = Math.min(viewportW - 24, Math.max(340, (viewportW * si.width) / 100))
@@ -608,18 +625,12 @@ export function PresentPage() {
       </div>
 
       {sidePanel && (
-        <aside
-          className="absolute right-4 z-30 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/60 backdrop-blur-xl animate-rise"
-          style={{ top: Math.max(16, padTop - 14), bottom: padBottom - 8, width: SIDE_PANEL_W, background: panelBg }}
-        >
+        <aside className="absolute right-4 z-30 animate-rise" style={{ top: Math.max(16, padTop - 14), bottom: padBottom - 8, width: SIDE_PANEL_W }}>
           <CopilotPanel copilot={copilot} variant="side" onClose={() => setCopilotOpen(false)} />
         </aside>
       )}
       {topPanel && (
-        <aside
-          className="absolute z-30 flex max-h-[46vh] flex-col overflow-hidden rounded-2xl border border-white/10 shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-rise"
-          style={{ top: topPanelTop, left: (viewportW - topPanelW) / 2, width: topPanelW, background: panelBg }}
-        >
+        <aside className="absolute z-30 animate-rise" style={{ top: topPanelTop, left: (viewportW - topPanelW) / 2, width: topPanelW }}>
           <CopilotPanel copilot={copilot} variant="top" onClose={() => setCopilotOpen(false)} />
         </aside>
       )}

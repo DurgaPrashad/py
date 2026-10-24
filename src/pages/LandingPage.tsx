@@ -1,5 +1,8 @@
 import {
   ArrowRight,
+  AudioLines,
+  MessageSquare,
+  Star,
   Briefcase,
   Check,
   Download,
@@ -22,6 +25,7 @@ import { DEFAULT_SETTINGS } from '../features/settings/defaults'
 import { Teleprompter } from '../features/teleprompter/Teleprompter'
 import { tokenizeScript } from '../services/alignment/normalize'
 import { PLANS, TRIAL_DAYS } from '../config'
+import { AnswerText, answerLayout } from '../features/copilot/AnswerText'
 import { PricingTable } from './site/Pricing'
 import { PrimaryLink, SecondaryLink, SiteShell } from './site/SiteShell'
 
@@ -102,9 +106,14 @@ function Hero() {
 function HeroPreview() {
   const words = useMemo(() => tokenizeScript(PREVIEW_SCRIPT), [])
   const [i, setI] = useState(0)
+  const [read, setRead] = useState(-1)
   useEffect(() => {
     const t = setInterval(() => setI((v) => (v + 1) % words.length), 380)
-    return () => clearInterval(t)
+    const r = setInterval(() => setRead((v) => (v + 1 >= PREVIEW_ANSWER.words.length + 4 ? -1 : v + 1)), 300)
+    return () => {
+      clearInterval(t)
+      clearInterval(r)
+    }
   }, [words.length])
   const config = { ...DEFAULT_SETTINGS.teleprompter, fontSize: 28 }
   return (
@@ -117,64 +126,97 @@ function HeroPreview() {
           <span className="ml-3 text-[11.5px] text-white/40">Present — Series A pitch</span>
         </div>
         <div className="relative overflow-hidden rounded-xl bg-black">
-          <div className="absolute top-0 left-1/2 h-4 w-24 -translate-x-1/2 rounded-b-xl bg-[#1a1a1e]" aria-hidden />
-          <div className="flex gap-4 p-4 pt-7 sm:p-6 sm:pt-8">
-            <div className="min-w-0 flex-1">
-              <div className="mx-auto w-full rounded-2xl border border-white/[0.08] bg-[#0b0b0e]/90 px-3 shadow-xl">
-                <Teleprompter words={words} current={i} config={config} pad={4} />
-              </div>
-              <div className="mt-4 flex aspect-[16/8] flex-col justify-center rounded-lg bg-[#f6f5f1] px-[8%]">
-                <p className="text-[10px] font-semibold tracking-[0.2em] text-emerald-700 uppercase sm:text-[11px]">Business model</p>
-                <p className="mt-2 text-[clamp(14px,2.6vw,28px)] leading-tight font-bold tracking-tight text-neutral-900">
-                  Building the operating infrastructure for global Voice AI
-                </p>
-                <p className="mt-2 text-[clamp(10px,1.3vw,14px)] text-neutral-500">150,000+ directly verifiable AI calls</p>
-              </div>
+          {/* Top text bar */}
+          <div className="relative bg-[#0b0b0e]/95 px-4 shadow-[0_10px_40px_rgba(0,0,0,0.55)]">
+            <div className="mx-auto max-w-[760px]">
+              <Teleprompter words={words} current={i} config={config} pad={4} />
             </div>
-            <div className="hidden w-[270px] shrink-0 flex-col gap-2.5 rounded-xl border border-white/[0.08] bg-[#141418] p-3.5 md:flex">
-              <div className="flex items-center gap-2 text-[12px] font-semibold text-white">
-                <Sparkles size={13} className="text-orange-400" /> SI copilot
-                <span className="ml-auto flex items-center gap-1.5 text-[10.5px] font-normal text-white/50">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-400" /> Listening
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500/80 to-transparent" />
+          </div>
+          <div className="relative p-4 sm:p-6">
+            <div className="flex aspect-[16/8.4] flex-col justify-end rounded-lg bg-[#f6f5f1] px-[8%] pb-[6%]">
+              <p className="text-[10px] font-semibold tracking-[0.2em] text-emerald-700 uppercase sm:text-[11px]">Business model</p>
+              <p className="mt-2 text-[clamp(14px,2.6vw,28px)] leading-tight font-bold tracking-tight text-neutral-900">
+                Building the operating infrastructure for global Voice AI
+              </p>
+              <p className="mt-2 text-[clamp(10px,1.3vw,14px)] text-neutral-500">150,000+ directly verifiable AI calls</p>
+            </div>
+            {/* SI overlay, right under the text bar */}
+            <div className="absolute top-3 left-1/2 hidden w-[min(560px,86%)] -translate-x-1/2 flex-col gap-1.5 text-white sm:flex">
+              <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-[#0e0e11]/85 p-1 shadow-xl backdrop-blur-xl">
+                <span className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-white/15">
+                  <Headphones size={14} />
+                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-red-400" />
                 </span>
+                <span className="flex h-7 items-center gap-1.5 rounded-lg bg-white/[0.07] px-2.5 text-[12px] font-medium">
+                  Answer <kbd className="rounded bg-white/10 px-1 font-sans text-[10px] text-white/60">⌘↵</kbd>
+                </span>
+                <span className="flex h-7 items-center rounded-lg bg-white/[0.07] px-2.5 text-[12px] font-medium">Ask</span>
+                <span className="ml-auto mr-1 rounded-full bg-orange-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-orange-300">
+                  <Sparkles size={10} className="mr-0.5 inline -translate-y-px" />
+                  SI
+                </span>
+                <span className="h-7 rounded-lg bg-red-500/85 px-2.5 text-[12px] leading-7 font-semibold">Hide</span>
               </div>
-              <div className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-3">
-                <p className="flex items-start gap-1.5 text-[11px] leading-snug text-white/50">
-                  <Headphones size={11} className="mt-0.5 shrink-0" /> How will you use the money you're raising?
-                </p>
-                <p className="mt-2 text-[12.5px] leading-relaxed text-white/90">
-                  We're raising $1.5M for 18 months of runway, split across three things:
-                  <br />• 50% engineering — two senior hires
-                  <br />• 30% go-to-market in the US
-                  <br />• 20% infrastructure for 1M calls a month
-                </p>
+              <div className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-[#0e0e11]/85 py-1.5 pr-2 pl-2.5 shadow-xl backdrop-blur-xl">
+                <AudioLines size={14} className="shrink-0 text-emerald-400" />
+                {['How will you', 'use the money', "you're raising?"].map((c, k) => (
+                  <span key={c} className={`rounded-md px-2 py-0.5 text-[11.5px] ${k === 2 ? 'bg-white/20' : 'bg-white/[0.08] text-white/75'}`}>
+                    {c}
+                  </span>
+                ))}
+                <span className="ml-auto text-[11px] text-white/50">Clear</span>
               </div>
-              <p className="text-[10.5px] leading-snug text-white/35">From your deck and Q&A prep notes · only you can see this</p>
+              <div className="rounded-2xl border border-white/10 bg-[#0e0e11]/85 px-3.5 py-3 shadow-xl backdrop-blur-xl">
+                <p className="flex items-start gap-2 text-[12.5px] text-white/85">
+                  <MessageSquare size={13} className="mt-0.5 shrink-0 text-white/50" />
+                  <span>
+                    <b className="font-semibold text-white">Question:</b> How will you use the money you're raising?
+                  </span>
+                </p>
+                <div className="mt-2 border-t border-white/[0.08] pt-2">
+                  <div className="mb-0.5 text-[13px] font-semibold">
+                    <Star size={12} className="mr-1 inline -translate-y-px text-amber-400" fill="currentColor" />
+                    Answer:
+                  </div>
+                  <AnswerText layout={PREVIEW_ANSWER} current={Math.min(read, PREVIEW_ANSWER.words.length - 1)} style="pill" fontSize={13} transitionMs={120} />
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <p className="mt-4 text-center text-[12.5px] text-slate-500">Preview. While you present, the highlight follows your voice.</p>
+      <p className="mt-4 text-center text-[12.5px] text-slate-500">Preview. The script and the AI answer both follow your voice as you speak.</p>
     </div>
   )
 }
 
+const PREVIEW_ANSWER = answerLayout("We're raising $1.5M for 18 months of runway.\n• 50% engineering — two senior hires\n• 30% go-to-market in the US\n• 20% infrastructure")
+
 function StatBand() {
   return (
     <section className="border-y border-slate-200 bg-slate-950 text-white">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-[auto_1fr] md:gap-16">
-        <div className="text-[64px] leading-none font-semibold tracking-[-0.04em] text-orange-400 sm:text-[88px]">70–77%</div>
-        <div>
-          <p className="text-[20px] leading-snug font-medium tracking-tight sm:text-[24px]">
-            of people feel nervous, anxious or physically uncomfortable when they present.
-          </p>
-          <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-white/65">
-            On an investor or client call, that's exactly when your deck has to carry you — the line you forget, the number you blank on, the question
-            you didn't see coming. Present is built for that moment.
-          </p>
-        </div>
+      <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 md:gap-16">
+        <Stat value="70–77%" title="of people feel nervous, anxious or physically uncomfortable when they present.">
+          On an investor or client call, that's exactly when your deck has to carry you — the line you forget, the number you blank on, the question you
+          didn't see coming.
+        </Stat>
+        <Stat value="95%" title="of startups now use AI to prepare and present their pitch.">
+          AI already writes the deck and the speaker notes. Present brings it into the room: your script follows your voice, and SI answers with you when
+          the questions start.
+        </Stat>
       </div>
     </section>
+  )
+}
+
+function Stat({ value, title, children }: { value: string; title: string; children: ReactNode }) {
+  return (
+    <div>
+      <div className="text-[60px] leading-none font-semibold tracking-[-0.04em] text-orange-400 sm:text-[76px]">{value}</div>
+      <p className="mt-4 text-[19px] leading-snug font-medium tracking-tight sm:text-[21px]">{title}</p>
+      <p className="mt-3 text-[15px] leading-relaxed text-white/65">{children}</p>
+    </div>
   )
 }
 
@@ -236,10 +278,11 @@ function CopilotSection() {
               Traction, revenue, pricing, team, competitors, your raise and use of funds — the facts you want at your fingertips.
             </Step>
             <Step n={2} title="Listen to the call">
-              Click <b>Listen to the call</b> and share your meeting tab's audio. It's transcribed on your computer.
+              Click the <b>headphones</b> and share your meeting tab's audio. What they say appears as live text, transcribed on your computer.
             </Step>
-            <Step n={3} title="Glance, answer, move on">
-              A suggested answer appears where you're already looking. Or type any question for an instant talking point.
+            <Step n={3} title="Read the answer — it follows you">
+              SI waits until the question is finished, then shows a short answer right under your script. As you read it out, the highlight moves with
+              your voice. Press <b>⌘↵</b> to answer anything on demand, or <b>Ask</b> to type.
             </Step>
           </ol>
           <p className="mt-8 flex items-start gap-2 text-[13.5px] leading-relaxed text-slate-500">

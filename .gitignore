@@ -26,3 +26,8 @@ dist-ssr
 # Generated offline runtime assets (scripts/copy-vendor-assets.mjs)
 public/vendor
 public/__dev__
+
+# Local secrets and Vercel link
+.env
+.env*.local
+.vercel

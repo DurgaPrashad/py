@@ -23,18 +23,23 @@ The hosted site (https://present.waspid.com) has accounts and paid plans; everyt
 
 Plans are prepaid (Razorpay Orders, USD) and never renew automatically.
 
-- **Schema & server logic:** `supabase/migrations/` — profiles (one per account), payments, contact messages, and security-definer functions: `create_account`, `create_checkout` / `confirm_payment` / `sync_payments` (Razorpay order → checkout → HMAC signature check → capture → plan extended), `ask_copilot` (calls the Claude API with the deck as context). Apply with `psql -f` or the Supabase SQL editor.
-- **Secrets** live in Supabase Vault and never in this repo or the browser:
-  ```sql
-  select vault.create_secret('<razorpay key id>', 'razorpay_key_id');
-  select vault.create_secret('<razorpay key secret>', 'razorpay_key_secret');
-  select vault.create_secret('<anthropic api key>', 'anthropic_api_key');
-  ```
+- **Server functions** (`api/`, Vercel): `checkout` (Razorpay order; price from `private.plans`), `verify-payment` (HMAC signature → payment confirmed with Razorpay → captured if needed → `private.grant_plan`), `sync-payments` (applies paid orders whose confirmation was missed), `razorpay-webhook` (same, from Razorpay's side), and `copilot` (the built-in AI: checks the plan with `claim_copilot_use`, then streams Claude's answer). `npm run dev` serves them locally with `.env.local`.
+- **Schema:** `supabase/migrations/` — profiles (one per account), payments, contact messages, `create_account`, `claim_copilot_use`, `grant_plan`. Apply with `psql -f` or the Supabase SQL editor.
+- **Environment variables** — set them in Vercel → *Settings → Environment Variables* (and in `.env.local` for local runs; see `.env.example`). Nothing secret is in the repo or the browser.
+
+  | Variable | Needed for | Where to get it |
+  | --- | --- | --- |
+  | `RAZORPAY_KEY_ID` | Payments | Razorpay Dashboard → API Keys |
+  | `RAZORPAY_KEY_SECRET` | Payments | Razorpay Dashboard → API Keys |
+  | `DATABASE_URL` | Payments | Supabase → Connect → *Transaction pooler* (port 6543); URL-encode the password (`@` → `%40`) |
+  | `RAZORPAY_WEBHOOK_SECRET` | Webhook (recommended) | Razorpay → Webhooks → URL `https://present.waspid.com/api/razorpay-webhook`, events `payment.captured`, `order.paid` |
+  | `ANTHROPIC_API_KEY` | Built-in AI (optional) | console.anthropic.com → API keys |
+  | `AI_MODEL`, `AI_EFFORT` | Optional | default `claude-opus-5-5`, `low` |
 - **Settings** (`private.settings`): AI model and effort, free SI answers, trial length, daily AI limit, sign-up rate limit. Prices: `private.plans` (keep `src/config.ts` in step).
 - **Public client config:** `src/config.ts` (Supabase URL + publishable key; override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`).
 - **Sources:** the **+** button on a presentation (or *Sources* in the editor) adds material SI may use — typed text with SI, file uploads (PDF, .docx, text) with SI yearly (`profiles.si_yearly_until`). Files are read on the device; only their text is stored with the presentation.
 - **SI with any AI:** *Settings → SI copilot* picks the built-in AI (server-side, site key) or the presenter's own API key for Anthropic Claude, OpenAI, Google Gemini, Groq, OpenRouter or any OpenAI-compatible endpoint (Ollama, LM Studio, DeepSeek…). Own keys stay on the device; answers stream straight from the provider (`src/features/copilot/providers.ts`), and `claim_copilot_use` still checks the SI plan / trial. Answer length and custom instructions apply to both.
-- **SI copilot:** in presentation mode press `Q` (or the ✦ button). *Listen to the call* shares the meeting tab's audio (Chrome/Edge, “Also share tab audio”); it is transcribed on-device by a second Whisper worker, questions are detected (`src/features/copilot/questions.ts`) and only the question plus deck text is sent for an answer. Typed questions work everywhere. The editor's *Q&A prep notes* and *Draft with AI* use the same function.
+- **SI copilot:** in presentation mode press `Q` (or the ✦ button): a toolbar (listen, **Answer** `⌘↵`, Ask), the live call transcript as chips, and the question with its answer. SI waits for the end of a question (1.3 s of quiet) before answering; as you read the answer aloud, its highlight follows your voice (`src/features/copilot/AnswerText.tsx`). *Listen to the call* shares the meeting tab's audio (Chrome/Edge, “Also share tab audio”); it is transcribed on-device by a second Whisper worker, questions are detected (`src/features/copilot/questions.ts`) and only the question plus deck text is sent for an answer. Typed questions work everywhere. The editor's *Q&A prep notes* and *Draft with AI* use the same function.
 - **Website pages:** `/`, `/pricing`, `/docs` (every feature, documented), `/download` (Mac app install guide), `/privacy`, `/terms`, `/refunds`, `/shipping`, `/cookies`, `/contact`, `/login`, `/signup`, `/account`. Settings shows the signed-in name, email and plan; the Mac app signs in with the same account. The web app is at `/app` and needs an account; presenting needs the trial or a plan.
 
 ## Web app

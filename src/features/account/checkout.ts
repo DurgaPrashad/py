@@ -1,5 +1,5 @@
 import { PRODUCT, type PlanId } from '../../config'
-import { supabase, supabaseMessage } from '../../services/supabase'
+import { apiJson } from '../../services/api'
 import type { Profile } from './account'
 
 interface CheckoutOrder {
@@ -53,10 +53,7 @@ export type CheckoutResult = { status: 'paid'; profile: Profile } | { status: 'd
 export async function checkout(plan: PlanId): Promise<CheckoutResult> {
   const [Razorpay, order] = await Promise.all([
     loadRazorpay(),
-    supabase.rpc('create_checkout', { p_plan: plan }).then(({ data, error }) => {
-      if (error) throw new Error(supabaseMessage(error))
-      return data as CheckoutOrder
-    }),
+    apiJson<CheckoutOrder>('/api/checkout', { plan }),
   ])
 
   return new Promise<CheckoutResult>((resolve, reject) => {
@@ -73,13 +70,16 @@ export async function checkout(plan: PlanId): Promise<CheckoutResult> {
       theme: { color: '#e8650f' },
       handler: async (res: RazorpaySuccess) => {
         settled = true
-        const { data, error } = await supabase.rpc('confirm_payment', {
-          p_order_id: res.razorpay_order_id,
-          p_payment_id: res.razorpay_payment_id,
-          p_signature: res.razorpay_signature,
-        })
-        if (error) reject(new Error(supabaseMessage(error)))
-        else resolve({ status: 'paid', profile: data as Profile })
+        try {
+          const profile = await apiJson<Profile>('/api/verify-payment', {
+            order_id: res.razorpay_order_id,
+            payment_id: res.razorpay_payment_id,
+            signature: res.razorpay_signature,
+          })
+          resolve({ status: 'paid', profile })
+        } catch (e) {
+          reject(e)
+        }
       },
       modal: {
         ondismiss: () => {
@@ -97,7 +97,5 @@ export async function checkout(plan: PlanId): Promise<CheckoutResult> {
 
 /** Applies payments whose confirmation didn't reach us (e.g. the tab closed). */
 export async function syncPayments(): Promise<Profile | null> {
-  const { data, error } = await supabase.rpc('sync_payments')
-  if (error) throw new Error(supabaseMessage(error))
-  return data as Profile | null
+  return apiJson<Profile | null>('/api/sync-payments', {})
 }

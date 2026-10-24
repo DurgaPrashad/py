@@ -1,11 +1,29 @@
-import { Check, Copy, Headphones, Keyboard, Loader2, RotateCcw, Send, Settings2, Sparkles, Square, X } from 'lucide-react'
-import { useState } from 'react'
-import { Button, IconButton } from '../../components/Button'
-import { Toggle } from '../../components/controls'
+import {
+  AudioLines,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Headphones,
+  Keyboard,
+  Loader2,
+  Maximize2,
+  MessageSquare,
+  Minimize2,
+  RotateCcw,
+  Send,
+  Settings2,
+  Sparkles,
+  Star,
+} from 'lucide-react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
+import { Button } from '../../components/Button'
 import { SITE_URL } from '../../config'
 import { platform } from '../../platform'
 import { entitlements, useAccount } from '../account/account'
+import type { HighlightStyle } from '../../types'
 import { useSettings } from '../settings/settingsStore'
+import { AnswerText } from './AnswerText'
 import { PROVIDERS } from './providers'
 import type { Copilot, QA } from './useCopilot'
 
@@ -14,222 +32,353 @@ function openSite(path: string) {
   void platform.openExternal(platform.kind === 'web' ? new URL(path, location.origin).href : `${SITE_URL}${path}`).catch(() => null)
 }
 
+const mod = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform) ? '⌘' : 'Ctrl '
+
 /**
- * The SI (Super Intelligence) copilot: listens to the call, shows detected
- * questions and suggested answers. `side` is a full panel beside the slide;
- * `top` is a compact box under the top text bar; `strip` fits under the
- * floating teleprompter (latest answer only). Text size comes from Settings → SI.
+ * The SI (Super Intelligence) overlay: a slim toolbar, the live call
+ * transcript as word chips, and the current question with its answer — the
+ * word you're reading highlighted as you say it. Each part is a translucent
+ * glass card (opacity, text size and highlight style from Settings → SI).
+ * `top` sits under the top text bar, `side` beside the slide, `strip` in the
+ * floating window.
  */
 export function CopilotPanel({ copilot, variant, onClose }: { copilot: Copilot; variant: 'side' | 'top' | 'strip'; onClose?: () => void }) {
   const session = useAccount((s) => s.session)
   const profile = useAccount((s) => s.profile)
   const ent = entitlements(profile)
-  const provider = useSettings((s) => s.settings.si.provider)
-  const model = useSettings((s) => (s.settings.si.provider === 'reflex' ? '' : s.settings.si.models[s.settings.si.provider]))
-  const textSize = useSettings((s) => s.settings.si.textSize)
+  const si = useSettings((s) => s.settings.si)
+  const transitionMs = useSettings((s) => s.settings.teleprompter.transitionMs)
+  const [chat, setChat] = useState(false)
   const [draft, setDraft] = useState('')
-  const strip = variant === 'strip'
-  const compact = variant !== 'side'
-  const { listen, caption, items } = copilot
-  const shown = strip ? items.slice(0, 1) : items
+  const [collapsed, setCollapsed] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const compact = variant === 'strip'
+  const glass: CSSProperties = { background: `rgb(14 14 17 / ${Math.round(si.opacity * 100)}%)` }
+  const listening = copilot.listen.state === 'listening'
+  const model = si.provider === 'reflex' ? 'Built-in AI' : si.models[si.provider] || PROVIDERS[si.provider].label
 
   const submit = () => {
     if (!draft.trim()) return
     copilot.ask(draft)
     setDraft('')
   }
+  const answerNow = () => {
+    if (!copilot.answerNow()) setChat(true)
+  }
 
-  const header = (
-    <div className="flex shrink-0 items-center gap-2">
-      <Sparkles size={14} className="text-accent" />
-      <span className="text-[13px] font-semibold">SI copilot</span>
-      {session && profile && (
-        <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold text-accent">
-          {ent.si ? 'SI' : `${ent.freeAnswersLeft} free left`}
-        </span>
+  const toolbar = (
+    <Glass style={glass} className="flex items-center gap-1 p-1">
+      {platform.kind === 'web' && (
+        <ToolButton
+          title={listening ? 'Stop listening to the call' : 'Listen to the call — share the meeting tab with “Also share tab audio”'}
+          active={listening}
+          disabled={!session || !ent.canAsk || copilot.listen.state === 'starting'}
+          onClick={() => void (listening ? copilot.stopListening() : copilot.startListening())}
+        >
+          {copilot.listen.state === 'starting' ? <Loader2 size={14} className="animate-spin" /> : <Headphones size={14} />}
+          {listening && <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-danger animate-pulse-dot" />}
+        </ToolButton>
       )}
+      <ToolChip title={`Answer what was just asked (${mod}↵)`} disabled={!session || !ent.canAsk} onClick={answerNow}>
+        Answer {!compact && <Kbd>{mod}↵</Kbd>}
+      </ToolChip>
+      <ToolChip title="Type a question" active={chat} disabled={!session || !ent.canAsk} onClick={() => setChat((v) => !v)}>
+        <Keyboard size={13} /> {!compact && 'Ask'}
+      </ToolChip>
       <div className="flex-1" />
-      {!strip && (
-        <span className="max-w-[120px] truncate text-[10.5px] text-subtle" title={provider === 'reflex' ? 'Built-in AI' : `${PROVIDERS[provider].label} · ${model} · your API key`}>
-          {provider === 'reflex' ? 'Built-in AI' : model || PROVIDERS[provider].label}
+      {session && profile && !compact && (
+        <span className="mr-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap text-accent" title={model}>
+          <Sparkles size={10} className="mr-0.5 inline -translate-y-px" />
+          {ent.si ? 'SI' : `${ent.freeAnswersLeft} free`}
         </span>
       )}
-      {!strip && (
-        <IconButton label="SI settings — AI provider, text size, transparency" size="sm" onClick={() => openSite('/settings#si')}>
-          <Settings2 size={13} />
-        </IconButton>
+      {!compact && (
+        <ToolButton title="SI settings — AI provider, size, transparency, highlight" onClick={() => openSite('/settings#si')}>
+          <Settings2 size={14} />
+        </ToolButton>
       )}
-      {!strip && items.length > 0 && (
-        <button type="button" onClick={copilot.clear} className="text-[11.5px] text-subtle hover:text-fg">
-          Clear
+      <ToolButton title={collapsed ? 'Show answers' : 'Collapse to the toolbar'} onClick={() => setCollapsed((v) => !v)}>
+        {collapsed ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+      </ToolButton>
+      {onClose && (
+        <button
+          type="button"
+          title="Hide SI (Q)"
+          onClick={onClose}
+          className="h-7 rounded-lg bg-danger/85 px-2.5 text-[12px] font-semibold text-white transition hover:bg-danger"
+        >
+          Hide
         </button>
       )}
-      {onClose && (
-        <IconButton label="Close copilot (Q)" size="sm" onClick={onClose}>
-          <X size={14} />
-        </IconButton>
-      )}
-    </div>
+    </Glass>
   )
 
-  if (!session) {
+  if (!session || !ent.canAsk) {
     return (
-      <Shell variant={variant}>
-        {header}
-        <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
-          Sign in to use SI — Super Intelligence suggests answers to the questions asked on your call.
-        </p>
-        <Button size="sm" variant="primary" className="mt-3 self-start" onClick={() => openSite('/login')}>
-          Sign in
-        </Button>
-      </Shell>
+      <Stack variant={variant}>
+        {toolbar}
+        <Glass style={glass} className="p-3.5">
+          <p className="text-[12.5px] leading-relaxed text-white/80">
+            {!session
+              ? 'Sign in to use SI — Super Intelligence tells you what to answer when someone asks a question.'
+              : 'AI answers on calls are part of the SI plan — $9/month or $69/year.'}
+          </p>
+          <Button size="sm" variant="primary" className="mt-2.5" onClick={() => openSite(session ? '/account?plan=si_monthly' : '/login')}>
+            {session ? 'Upgrade to SI' : 'Sign in'}
+          </Button>
+        </Glass>
+      </Stack>
     )
   }
 
-  const listenRow =
-    platform.kind !== 'web' ? null : listen.state === 'listening' ? (
-      <div className="flex min-w-0 items-center gap-2 rounded-lg bg-danger/10 px-2.5 py-1.5">
-        <span className="h-2 w-2 shrink-0 rounded-full bg-danger animate-pulse-dot" />
-        <span className="min-w-0 flex-1 truncate text-[12px] text-fg" title={caption}>
-          {caption || 'Listening to the call…'}
-        </span>
-        <IconButton label="Stop listening" size="sm" className="!h-6 !w-6" onClick={() => void copilot.stopListening()}>
-          <Square size={11} fill="currentColor" />
-        </IconButton>
-      </div>
-    ) : (
-      <div className="flex flex-col gap-1.5">
-        <Button
-          size="sm"
-          variant={compact ? 'secondary' : 'primary'}
-          icon={listen.state === 'starting' ? <Loader2 size={13} className="animate-spin" /> : <Headphones size={13} />}
-          disabled={listen.state === 'starting' || !ent.canAsk}
-          onClick={() => void copilot.startListening()}
-          className="self-start"
-        >
-          {listen.state === 'starting' ? 'Connecting…' : 'Listen to the call'}
-        </Button>
-        {listen.state === 'error' ? (
-          <p className="text-[11.5px] leading-snug text-danger">{listen.message}</p>
-        ) : (
-          !compact && (
-            <p className="text-[11.5px] leading-snug text-subtle">
-              Pick the tab your Meet, Zoom or Teams call is in and switch on <span className="text-muted">“Also share tab audio”</span>. Audio is
-              transcribed on this computer.
-            </p>
-          )
-        )}
-      </div>
-    )
+  const heardWords = [...copilot.heard.final, copilot.heard.partial].join(' ').split(/\s+/).filter(Boolean)
+  const liveFrom = heardWords.length - copilot.heard.partial.split(/\s+/).filter(Boolean).length
+  const chips: { text: string; live: boolean }[] = []
+  for (let i = Math.max(0, heardWords.length - 30); i < heardWords.length; i += 3) {
+    chips.push({ text: heardWords.slice(i, i + 3).join(' '), live: i + 2 >= liveFrom && copilot.heard.partial !== '' })
+  }
+  const showTranscript = !collapsed && (listening || chips.length > 0 || copilot.listen.state === 'error' || copilot.listen.state === 'starting')
+  const q = copilot.current
 
   return (
-    <Shell variant={variant}>
-      {header}
-      {!ent.canAsk ? (
-        <div className="mt-3 rounded-xl border border-accent/30 bg-accent-soft p-3">
-          <p className="text-[12.5px] leading-relaxed text-fg">AI answers on calls are part of the SI plan — $9/month or $69/year.</p>
-          <Button size="sm" variant="primary" className="mt-2" onClick={() => openSite('/account?plan=si_monthly')}>
-            Upgrade to SI
-          </Button>
-        </div>
-      ) : (
-        <div className={`flex shrink-0 flex-col gap-2 ${compact ? 'mt-1.5' : 'mt-3'}`}>
-          {listenRow}
-          {!compact && (
-            <label className="flex items-center gap-2 text-[11.5px] text-muted">
-              <Toggle checked={copilot.autoAnswer} onChange={copilot.setAutoAnswer} label="Answer detected questions automatically" />
-              Answer detected questions automatically
-            </label>
-          )}
-        </div>
+    <Stack variant={variant}>
+      {toolbar}
+
+      {showTranscript && (
+        <Glass style={glass} className="flex items-center gap-2 py-1.5 pr-1.5 pl-2.5">
+          <AudioLines size={15} className={`shrink-0 ${listening ? 'text-success' : 'text-subtle'}`} />
+          <div className="flex min-w-0 flex-1 justify-end gap-1.5 overflow-hidden whitespace-nowrap">
+            {copilot.listen.state === 'error' ? (
+              <span className="truncate text-[12px] text-danger" title={copilot.listen.message}>
+                {copilot.listen.message}
+              </span>
+            ) : copilot.listen.state === 'starting' ? (
+              <span className="text-[12px] text-subtle">Connecting to the call…</span>
+            ) : chips.length === 0 ? (
+              <span className="text-[12px] text-subtle">Listening to the call…</span>
+            ) : (
+              chips.map((c, i) => (
+                <span key={i} className={`shrink-0 rounded-md px-2 py-0.5 text-[12px] ${c.live ? 'bg-white/20 text-white' : 'bg-white/[0.08] text-white/75'}`}>
+                  {c.text}
+                </span>
+              ))
+            )}
+          </div>
+          <button type="button" onClick={copilot.clearTranscript} className="shrink-0 rounded-md px-1.5 py-0.5 text-[11.5px] text-white/60 hover:bg-white/10 hover:text-white">
+            Clear
+          </button>
+        </Glass>
       )}
 
-      <div className={`min-h-0 flex-1 overflow-y-auto ${compact ? 'mt-1.5' : 'mt-3'} flex flex-col gap-2`}>
-        {shown.length === 0 && !strip && (
-          <p className={`text-center text-[12px] leading-relaxed text-subtle ${compact ? 'py-2' : 'py-6'}`}>
-            Questions you type or hear on the call appear here with a suggested answer from your deck, notes and sources.
-          </p>
-        )}
-        {shown.map((q) => (
-          <Card key={q.id} q={q} compact={compact} textSize={textSize} onAnswer={() => copilot.answerItem(q)} />
+      {chat && !collapsed && (
+        <Glass style={glass} className="p-1.5">
+          <form
+            className="flex items-center gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault()
+              submit()
+            }}
+          >
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), setChat(false))}
+              placeholder="Type a question and press Enter…"
+              className="h-8 min-w-0 flex-1 rounded-lg bg-black/30 px-2.5 text-[13px] text-white outline-none placeholder:text-white/40"
+            />
+            <button type="button" title="Ask" disabled={!draft.trim()} onClick={submit} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-30">
+              <Send size={14} />
+            </button>
+          </form>
+        </Glass>
+      )}
+
+      {!collapsed &&
+        (q ? (
+          <Glass style={glass} className={`flex min-h-0 flex-col ${variant === 'side' ? 'flex-1' : ''}`}>
+            <div className="flex shrink-0 items-center gap-1 px-2 pt-2">
+              <NavButton title={`Older answer (${mod}←)`} disabled={copilot.index >= copilot.items.length - 1} onClick={copilot.older}>
+                <ChevronLeft size={13} />
+              </NavButton>
+              <NavButton title={`Newer answer (${mod}→)`} disabled={copilot.index === 0} onClick={copilot.newer}>
+                <ChevronRight size={13} />
+              </NavButton>
+              <span className="ml-1 text-[11px] text-white/45 tabular">
+                {copilot.items.length - copilot.index} / {copilot.items.length}
+              </span>
+              <div className="flex-1" />
+              <button type="button" onClick={copilot.clear} className="rounded-md px-1.5 py-0.5 text-[11.5px] text-white/60 hover:bg-white/10 hover:text-white">
+                Clear
+              </button>
+              {!compact && (
+                <NavButton title={expanded ? 'Smaller' : 'Bigger'} onClick={() => setExpanded((v) => !v)}>
+                  {expanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                </NavButton>
+              )}
+            </div>
+            <div
+              className="min-h-0 flex-1 overflow-y-auto px-3.5 pt-2 pb-3"
+              style={variant === 'side' ? undefined : { maxHeight: expanded ? '70vh' : compact ? undefined : '34vh' }}
+            >
+              <QuestionLine q={q} size={si.textSize} />
+              <div className="mt-2 border-t border-white/[0.08] pt-2">
+                <AnswerBody q={q} copilot={copilot} size={si.textSize} highlight={si.highlightStyle} transitionMs={transitionMs} />
+              </div>
+              {q.status === 'done' && q.answer && (
+                <div className="mt-2 flex items-center gap-2 text-[11px] text-white/40">
+                  <span>
+                    Answer · {new Date(q.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  {!compact && <span className="truncate">· {model}</span>}
+                  {si.followVoice && !compact && <span className="ml-auto whitespace-nowrap">The highlight follows your voice</span>}
+                </div>
+              )}
+            </div>
+          </Glass>
+        ) : (
+          !listening &&
+          !chat && (
+            <Glass style={glass} className="px-3.5 py-2.5">
+              <p className="text-[12px] leading-relaxed text-white/60">
+                {platform.kind === 'web' ? 'Click the headphones to listen to the call, or ' : ''}
+                press <b className="font-semibold text-white/80">Ask</b> to type a question. Answers come from your deck, notes and sources.
+              </p>
+            </Glass>
+          )
         ))}
-      </div>
-
-      {ent.canAsk && (
-        <form
-          className="mt-2 flex shrink-0 items-center gap-1.5"
-          onSubmit={(e) => {
-            e.preventDefault()
-            submit()
-          }}
-        >
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Type a question…"
-            className="h-8 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 text-[12.5px] text-fg outline-none placeholder:text-subtle focus:border-accent/60"
-          />
-          <IconButton label="Ask" size="sm" disabled={!draft.trim()} onClick={submit}>
-            <Send size={13} />
-          </IconButton>
-        </form>
-      )}
-    </Shell>
+    </Stack>
   )
 }
 
-function Shell({ variant, children }: { variant: 'side' | 'top' | 'strip'; children: React.ReactNode }) {
-  const pad = variant === 'side' ? 'p-4' : variant === 'top' ? 'px-3.5 py-2.5' : 'px-3 pb-2'
-  return <div className={`selectable flex h-full min-h-0 flex-col text-fg ${pad}`}>{children}</div>
+function QuestionLine({ q, size }: { q: QA; size: number }) {
+  return (
+    <div className="group/q relative flex items-start gap-2 pr-6" style={{ fontSize: Math.max(11, size - 1), lineHeight: 1.5 }}>
+      <MessageSquare size={13} className="mt-[0.3em] shrink-0 text-white/50" />
+      <p className="text-white/85">
+        <b className="font-semibold text-white">Question:</b> {q.question}
+      </p>
+      <CopyButton text={q.question} />
+    </div>
+  )
 }
 
-function Card({ q, compact, textSize, onAnswer }: { q: QA; compact: boolean; textSize: number; onAnswer: () => void }) {
-  const answerStyle = { fontSize: textSize, lineHeight: 1.55 }
-  return (
-    <div className={`rounded-xl border border-white/[0.08] bg-white/[0.04] ${compact ? 'px-3 py-2' : 'px-3.5 py-3'} animate-rise`}>
-      <div className="flex items-start gap-1.5 leading-snug text-subtle" style={{ fontSize: Math.max(10.5, textSize - 2) }}>
-        {q.source === 'call' ? <Headphones size={11} className="mt-0.5 shrink-0" /> : <Keyboard size={11} className="mt-0.5 shrink-0" />}
-        <span className={compact ? 'line-clamp-2' : 'line-clamp-3'}>{q.question}</span>
+function AnswerBody({ q, copilot, size, highlight, transitionMs }: { q: QA; copilot: Copilot; size: number; highlight: HighlightStyle; transitionMs: number }) {
+  const label = (
+    <span className="mr-1 inline-flex items-center gap-1 font-semibold text-white">
+      <Star size={12} className="text-amber-400" fill="currentColor" /> Answer:
+    </span>
+  )
+  if (q.status === 'error') {
+    return (
+      <div className="flex items-start gap-2">
+        <p className="flex-1 text-[12.5px] leading-snug text-danger">{q.error}</p>
+        {q.code === 'SI_REQUIRED' ? (
+          <Button size="sm" variant="primary" onClick={() => openSite('/account?plan=si_monthly')}>
+            Upgrade
+          </Button>
+        ) : q.code === 'AI_NOT_CONFIGURED' ? (
+          <Button size="sm" variant="primary" onClick={() => openSite('/settings#si')}>
+            Add API key
+          </Button>
+        ) : (
+          <button type="button" title="Try again" onClick={() => copilot.answerItem(q)} className="rounded-md p-1 text-white/60 hover:bg-white/10 hover:text-white">
+            <RotateCcw size={13} />
+          </button>
+        )}
       </div>
-      {q.status === 'answering' && q.answer ? (
-        <p className="mt-1 whitespace-pre-line text-fg" style={answerStyle}>
-          {q.answer}
-          <span className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] bg-accent animate-pulse-dot" />
-        </p>
-      ) : q.status === 'answering' ? (
-        <div className="mt-1.5 flex items-center gap-2 text-[12.5px] text-muted">
-          <Loader2 size={13} className="animate-spin text-accent" /> Writing an answer…
-        </div>
-      ) : q.status === 'error' ? (
-        <div className="mt-1.5 flex items-start gap-2">
-          <p className="flex-1 text-[12.5px] leading-snug text-danger">{q.error}</p>
-          {q.code === 'SI_REQUIRED' ? (
-            <Button size="sm" variant="primary" onClick={() => openSite('/account?plan=si_monthly')}>
-              Upgrade
-            </Button>
-          ) : q.code === 'AI_NOT_CONFIGURED' ? (
-            <Button size="sm" variant="primary" onClick={() => openSite('/settings#si')}>
-              Add API key
-            </Button>
-          ) : (
-            <IconButton label="Try again" size="sm" onClick={onAnswer}>
-              <RotateCcw size={12} />
-            </IconButton>
-          )}
-        </div>
-      ) : q.answer ? (
-        <div className="group/answer relative">
-          <p className="mt-1 pr-6 whitespace-pre-line text-fg" style={answerStyle}>
-            {q.answer}
-          </p>
-          <CopyButton text={q.answer} />
-        </div>
-      ) : (
-        <Button size="sm" className="mt-1.5" onClick={onAnswer}>
-          Suggest an answer
-        </Button>
-      )}
+    )
+  }
+  if (q.status === 'answering') {
+    return q.answer ? (
+      <p className="whitespace-pre-line text-white" style={{ fontSize: size, lineHeight: 1.6 }}>
+        {label}
+        {q.answer}
+        <span className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] bg-accent animate-pulse-dot" />
+      </p>
+    ) : (
+      <div className="flex items-center gap-2 text-[12.5px] text-white/60">
+        <Loader2 size={13} className="animate-spin text-accent" /> Writing an answer…
+      </div>
+    )
+  }
+  if (!q.answer || !copilot.layout || copilot.current?.id !== q.id) {
+    return (
+      <Button size="sm" onClick={() => copilot.answerItem(q)}>
+        Suggest an answer
+      </Button>
+    )
+  }
+  return (
+    <div className="group/q relative pr-6">
+      <div className="mb-0.5" style={{ fontSize: size }}>
+        {label}
+      </div>
+      <AnswerText layout={copilot.layout} current={copilot.readIndex} style={highlight} fontSize={size} transitionMs={transitionMs} />
+      <CopyButton text={q.answer} />
     </div>
+  )
+}
+
+function Stack({ variant, children }: { variant: 'side' | 'top' | 'strip'; children: ReactNode }) {
+  return <div className={`selectable flex min-h-0 flex-col gap-1.5 text-white ${variant === 'side' ? 'h-full' : ''} ${variant === 'strip' ? 'p-1.5' : ''}`}>{children}</div>
+}
+
+function Glass({ style, className = '', children }: { style: CSSProperties; className?: string; children: ReactNode }) {
+  return (
+    <div className={`rounded-2xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl ${className}`} style={style}>
+      {children}
+    </div>
+  )
+}
+
+function ToolButton({ title, active, disabled, onClick, children }: { title: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition disabled:opacity-35 ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function ToolChip({ title, active, disabled, onClick, children }: { title: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-medium transition disabled:opacity-35 ${
+        active ? 'bg-white/15 text-white' : 'bg-white/[0.07] text-white/90 hover:bg-white/[0.14]'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Kbd({ children }: { children: ReactNode }) {
+  return <kbd className="rounded bg-white/10 px-1 font-sans text-[10.5px] text-white/60">{children}</kbd>
+}
+
+function NavButton({ title, disabled, onClick, children }: { title: string; disabled?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-6 min-w-6 items-center justify-center rounded-md bg-white/[0.07] px-1 text-white/70 hover:bg-white/[0.14] hover:text-white disabled:opacity-30"
+    >
+      {children}
+    </button>
   )
 }
 
@@ -238,15 +387,15 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      title="Copy answer"
-      aria-label="Copy answer"
+      title="Copy"
+      aria-label="Copy"
       onClick={() => {
         void navigator.clipboard?.writeText(text).then(() => {
           setCopied(true)
           setTimeout(() => setCopied(false), 1200)
         })
       }}
-      className="absolute top-0 right-0 rounded-md p-1 text-subtle opacity-0 transition-opacity group-hover/answer:opacity-100 hover:bg-hover hover:text-fg"
+      className="absolute top-0 right-0 rounded-md p-1 text-white/40 opacity-0 transition-opacity group-hover/q:opacity-100 hover:bg-white/10 hover:text-white"
     >
       {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
     </button>

@@ -73,7 +73,7 @@ export type AiProvider = 'reflex' | 'anthropic' | 'openai' | 'gemini' | 'groq' |
 export type OwnKeyProvider = Exclude<AiProvider, 'reflex'>
 
 export interface Settings {
-  version: 4
+  version: 5
   speech: {
     modelId: string
     deviceId: string | null
@@ -144,6 +144,10 @@ export interface Settings {
     width: number
     /** Opacity of the copilot's black background, 0..1. */
     opacity: number
+    /** How the word you're reading is marked in an answer. */
+    highlightStyle: HighlightStyle
+    /** Move the highlight through an answer as you read it aloud. */
+    followVoice: boolean
   }
 }
 

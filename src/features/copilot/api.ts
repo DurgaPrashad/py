@@ -1,4 +1,5 @@
 import type { Presentation, Settings } from '../../types'
+import { api, ApiError, apiJson } from '../../services/api'
 import { supabase, supabaseCode, supabaseMessage } from '../../services/supabase'
 import { complete, PROVIDERS } from './providers'
 import { stylePreferences, systemPrompt, userPrompt, type CopilotMode } from './prompts'
@@ -34,11 +35,7 @@ export async function runCopilot(
   context: string,
   onText?: (soFar: string) => void,
 ): Promise<CopilotAnswer> {
-  if (si.provider === 'reflex') {
-    const { data, error } = await supabase.rpc('ask_copilot', { p_question: input, p_context: context, p_mode: mode, p_style: stylePreferences(si, mode) || null })
-    if (error) throw rpcError(error)
-    return data as CopilotAnswer
-  }
+  if (si.provider === 'reflex') return builtIn(mode, input, context, stylePreferences(si, mode), onText)
   const { data, error } = await supabase.rpc('claim_copilot_use', { p_mode: mode })
   if (error) throw rpcError(error)
   const claim = data as Omit<CopilotAnswer, 'text'>
@@ -47,10 +44,44 @@ export async function runCopilot(
   return { ...claim, text }
 }
 
+/** The site's AI (api/copilot.ts), streamed. */
+async function builtIn(mode: CopilotMode, input: string, context: string, style: string, onText?: (soFar: string) => void): Promise<CopilotAnswer> {
+  let res: Response
+  try {
+    res = await api('/api/copilot', { method: 'POST', body: JSON.stringify({ mode, input, context, style }) })
+  } catch (e) {
+    throw e instanceof ApiError ? new CopilotError(e.message, e.code) : e
+  }
+  const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader()
+  let raw = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    raw += value
+    onText?.(raw.split('\u0000')[0])
+  }
+  // A failure after streaming started arrives after a NUL character.
+  const [text, failure] = raw.split('\u0000')
+  if (failure !== undefined) {
+    let message = 'The AI service is unavailable right now.'
+    try {
+      message = (JSON.parse(failure) as { error?: string }).error ?? message
+    } catch {
+      // keep the generic message
+    }
+    throw new CopilotError(message, null)
+  }
+  const freeLeft = res.headers.get('x-free-left')
+  return { text: text.trim(), si: res.headers.get('x-si') === 'true', free_left: freeLeft ? Number(freeLeft) : null }
+}
+
 /** Is the site's built-in AI switched on? */
 export async function builtInAvailable(): Promise<boolean> {
-  const { data } = await supabase.rpc('copilot_allowance')
-  return !!(data as { configured?: boolean } | null)?.configured
+  try {
+    return (await apiJson<{ configured?: boolean }>('/api/copilot')).configured === true
+  } catch {
+    return false
+  }
 }
 
 const MAX_CONTEXT = 300_000

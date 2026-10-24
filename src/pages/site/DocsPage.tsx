@@ -190,10 +190,17 @@ export function DocsPage() {
                 switched on. The call audio is transcribed on your computer.
               </li>
               <li>
-                When someone asks a question, it appears in the panel and an answer streams in seconds later. Turn off <em>Answer detected questions
-                automatically</em> to answer only the ones you click.
+                What the other person says appears as live text chips. SI waits until they've finished the question (a short pause), joins questions asked
+                in several parts, and streams an answer seconds later. Turn off <em>Answer detected questions automatically</em> to answer only on demand.
               </li>
-              <li>You can also type any question at any time.</li>
+              <li>
+                <strong>Answer</strong> (<code>⌘↵</code> / <code>Ctrl+↵</code>) answers whatever was just said, even if it didn't sound like a question.{' '}
+                <strong>Ask</strong> lets you type a question. <code>⌘←</code> / <code>⌘→</code> step through earlier answers.
+              </li>
+              <li>
+                As you read an answer aloud, the <strong>highlight follows your voice</strong> word by word, just like the script. Choose pill, underline,
+                colour or bold in <em>Settings → SI copilot</em>.
+              </li>
             </ol>
             <p>
               The copilot appears as a small box right under the top text bar (or as a side panel). Its text size, width and black-background

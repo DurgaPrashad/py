@@ -7,6 +7,7 @@ import { TitleBar } from '../components/TitleBar'
 import { PRODUCT } from '../config'
 import { daysLeft, entitlements, useAccount } from '../features/account/account'
 import { builtInAvailable } from '../features/copilot/api'
+import { AnswerText, answerLayout } from '../features/copilot/AnswerText'
 import { complete, PROVIDERS } from '../features/copilot/providers'
 import { DEFAULT_SETTINGS } from '../features/settings/defaults'
 import { useSettings } from '../features/settings/settingsStore'
@@ -777,6 +778,21 @@ function SiSection() {
       <Row label="Background opacity" hint="How dark the black background behind the answers is. Lower shows more of the slide through it.">
         <Slider value={si.opacity} min={0.2} max={1} step={0.02} onChange={(opacity) => update('si', { opacity })} format={(v) => `${Math.round(v * 100)}%`} />
       </Row>
+      <Row label="Answer highlight" hint="How the word you're reading is marked in an answer.">
+        <Segmented
+          value={si.highlightStyle}
+          onChange={(highlightStyle) => update('si', { highlightStyle })}
+          options={[
+            { value: 'pill', label: 'Pill' },
+            { value: 'underline', label: 'Underline' },
+            { value: 'color', label: 'Color' },
+            { value: 'bold', label: 'Bold' },
+          ]}
+        />
+      </Row>
+      <Row label="Highlight follows my voice" hint="As you read an answer aloud, the highlight moves to the word you're saying — like the teleprompter.">
+        <Toggle checked={si.followVoice} onChange={(followVoice) => update('si', { followVoice })} />
+      </Row>
     </Section>
   )
 }
@@ -876,6 +892,8 @@ function AccountCard() {
   )
 }
 
+const PREVIEW_ANSWER = answerLayout('We’re raising $1.5M for 18 months of runway.\n• 50% engineering\n• 30% go-to-market')
+
 /** A sample SI answer box with the current text size and background opacity. */
 function SiPreview() {
   const si = useSettings((s) => s.settings.si)
@@ -891,8 +909,8 @@ function SiPreview() {
         <div className="mt-1.5 text-white/55" style={{ fontSize: Math.max(10.5, si.textSize - 2) }}>
           How will you use the money you're raising?
         </div>
-        <div className="mt-1 whitespace-pre-line" style={{ fontSize: si.textSize, lineHeight: 1.55 }}>
-          {'We’re raising $1.5M for 18 months of runway.\n• 50% engineering\n• 30% go-to-market'}
+        <div className="mt-1">
+          <AnswerText layout={PREVIEW_ANSWER} current={4} style={si.highlightStyle} fontSize={si.textSize} transitionMs={120} />
         </div>
       </div>
     </div>

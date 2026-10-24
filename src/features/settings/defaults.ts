@@ -3,7 +3,7 @@ import { isTauri } from '../../services/tauri'
 import type { Settings } from '../../types'
 
 export const DEFAULT_SETTINGS: Settings = {
-  version: 4,
+  version: 5,
   speech: {
     // The browser runs Whisper on WebGPU; Tiny keeps updates live there.
     modelId: isTauri() ? 'base.en' : 'tiny.en',
@@ -72,7 +72,9 @@ export const DEFAULT_SETTINGS: Settings = {
     panel: 'top',
     textSize: 13,
     width: 56,
-    opacity: 0.8,
+    opacity: 0.92,
+    highlightStyle: 'pill',
+    followVoice: true,
   },
 }
 
@@ -111,6 +113,10 @@ function migrate(s: Settings, from: number): Settings {
       tp.width = DEFAULT_SETTINGS.teleprompter.width
     }
     s = { ...s, speech: sp, teleprompter: tp }
+  }
+  if (from < 5) {
+    // Answers sit over the slide: the old default let slide text show through.
+    if (s.si.opacity === 0.8) s = { ...s, si: { ...s.si, opacity: DEFAULT_SETTINGS.si.opacity } }
   }
   if (from < 4) {
     // Text moves as fast as possible by default now.
