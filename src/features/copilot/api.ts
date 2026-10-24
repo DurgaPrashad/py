@@ -1,4 +1,4 @@
-import type { Presentation, Settings } from '../../types'
+import type { OwnKeyProvider, Presentation, Settings } from '../../types'
 import { api, ApiError, apiJson } from '../../services/api'
 import { supabase, supabaseCode, supabaseMessage } from '../../services/supabase'
 import { complete, PROVIDERS } from './providers'
@@ -23,32 +23,70 @@ export class CopilotError extends Error {
 
 const rpcError = (error: unknown) => new CopilotError(supabaseMessage(error), supabaseCode(error))
 
+export interface RunOptions {
+  /** Called with the answer so far while it streams in. */
+  onText?: (soFar: string) => void
+  /** Recent "Q: … / A: …" lines, so follow-up questions keep their context. */
+  history?: string
+  signal?: AbortSignal
+}
+
+const TIMEOUT_MS: Record<CopilotMode, number> = { answer: 45_000, suggest: 25_000, script: 60_000 }
+
 /**
- * Answers a question ('answer') or drafts a slide script ('script') with the
- * presenter's chosen AI: the built-in one (server-side, site key) or their own
- * API key (straight from this device). Both check the SI plan / trial first.
+ * Answers a question ('answer'), drafts a slide script ('script') or suggests
+ * two likely questions ('suggest') with the presenter's chosen AI: the
+ * built-in one (api/copilot.ts) or their own API key (straight from this
+ * device). Both check the SI plan / trial first. Times out rather than hang.
  */
-export async function runCopilot(
-  si: Settings['si'],
-  mode: CopilotMode,
-  input: string,
-  context: string,
-  onText?: (soFar: string) => void,
-): Promise<CopilotAnswer> {
-  if (si.provider === 'reflex') return builtIn(mode, input, context, stylePreferences(si, mode), onText)
+export async function runCopilot(si: Settings['si'], mode: CopilotMode, input: string, context: string, opts: RunOptions = {}): Promise<CopilotAnswer> {
+  const timeout = new AbortController()
+  const timer = setTimeout(() => timeout.abort(), TIMEOUT_MS[mode])
+  opts.signal?.addEventListener('abort', () => timeout.abort())
+  try {
+    const result =
+      si.provider === 'reflex'
+        ? await builtIn(mode, input, context, stylePreferences(si, mode), opts.history ?? '', opts.onText, timeout.signal)
+        : await ownKey(si, mode, input, context, opts, timeout.signal)
+    if (!result.text.trim()) throw new CopilotError('No answer came back. Try again, or rephrase the question.', 'EMPTY')
+    return result
+  } catch (e) {
+    if (timeout.signal.aborted && !opts.signal?.aborted) throw new CopilotError('The AI took too long to answer. Try again.', 'TIMEOUT')
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function ownKey(si: Settings['si'], mode: CopilotMode, input: string, context: string, opts: RunOptions, signal: AbortSignal): Promise<CopilotAnswer> {
   const { data, error } = await supabase.rpc('claim_copilot_use', { p_mode: mode })
   if (error) throw rpcError(error)
   const claim = data as Omit<CopilotAnswer, 'text'>
-  const text = await complete(si, { system: systemPrompt(si, mode), material: context, prompt: userPrompt(mode, input), onText })
-  if (!text) throw new CopilotError(`${PROVIDERS[si.provider].label} returned an empty answer. Try again or pick another model.`, null)
+  const text = await complete(si, {
+    system: systemPrompt(si, mode),
+    material: context,
+    prompt: userPrompt(mode, input, opts.history),
+    maxTokens: mode === 'suggest' ? 1500 : undefined,
+    onText: opts.onText,
+    signal,
+  })
+  if (!text) throw new CopilotError(`${PROVIDERS[si.provider as OwnKeyProvider].label} returned an empty answer. Try again or pick another model.`, 'EMPTY')
   return { ...claim, text }
 }
 
 /** The site's AI (api/copilot.ts), streamed. */
-async function builtIn(mode: CopilotMode, input: string, context: string, style: string, onText?: (soFar: string) => void): Promise<CopilotAnswer> {
+async function builtIn(
+  mode: CopilotMode,
+  input: string,
+  context: string,
+  style: string,
+  history: string,
+  onText: ((soFar: string) => void) | undefined,
+  signal: AbortSignal,
+): Promise<CopilotAnswer> {
   let res: Response
   try {
-    res = await api('/api/copilot', { method: 'POST', body: JSON.stringify({ mode, input, context, style }) })
+    res = await api('/api/copilot', { method: 'POST', body: JSON.stringify({ mode, input, context, style, history }), signal })
   } catch (e) {
     throw e instanceof ApiError ? new CopilotError(e.message, e.code) : e
   }

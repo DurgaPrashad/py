@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ScriptWord, Settings } from '../../types'
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
   current: number
   config: Settings['teleprompter']
   onWordClick?: (index: number) => void
-  emptyText?: string
+  emptyText?: ReactNode
   /** Horizontal breathing room inside the strip, px. */
   pad?: number
 }
@@ -110,7 +110,7 @@ export function Teleprompter({ words, current, config, onWordClick, emptyText = 
       style={{ fontSize: fontPx }}
     >
       {total === 0 ? (
-        <div className="py-[0.42em] text-center text-[0.55em] text-subtle">{emptyText}</div>
+        <div className="flex items-center justify-center gap-3 py-[0.5em] text-center text-[14px] text-subtle">{emptyText}</div>
       ) : (
         <div
           className="relative flex w-max py-[0.38em] whitespace-nowrap will-change-transform"

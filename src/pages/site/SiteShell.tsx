@@ -10,7 +10,6 @@ const NAV = [
   { to: '/#copilot', label: 'SI copilot' },
   { to: '/pricing', label: 'Pricing' },
   { to: '/docs', label: 'Docs' },
-  { to: '/download', label: 'Download' },
 ]
 
 /**
@@ -154,7 +153,7 @@ function SiteFooter() {
         </div>
         {col('Product', [
           ['/app', 'Web app'],
-          ['/download', 'Mac app'],
+          ['/#download', 'Desktop app'],
           ['/pricing', 'Pricing'],
           ['/docs', 'Docs'],
           ['/account', 'Your account'],

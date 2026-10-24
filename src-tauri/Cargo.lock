@@ -2976,7 +2976,7 @@ dependencies = [
 
 [[package]]
 name = "reflex-presenter"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "cfb 0.15.0",

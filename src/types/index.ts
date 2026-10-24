@@ -136,12 +136,10 @@ export interface Settings {
     instructions: string
     /** Answer questions heard on the call without a click. */
     autoAnswer: boolean
-    /** Where the copilot sits while presenting: a box under the top text bar, or a side panel. */
-    panel: 'top' | 'side'
-    /** Answer text size (px). */
+    /** Answer and script text size in the assistant (px). */
     textSize: number
-    /** Width of the box under the top bar (% of the window). */
-    width: number
+    /** Width of the assistant panel beside the slide (px). */
+    panelWidth: number
     /** Opacity of the copilot's black background, 0..1. */
     opacity: number
     /** How the word you're reading is marked in an answer. */

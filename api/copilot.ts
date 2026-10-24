@@ -9,7 +9,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { CORS, env, handle, HttpError, json, preflight, readJson } from './_lib/http.js'
-import { systemPrompt } from './_lib/prompts.js'
+import { systemPrompt, type Mode } from './_lib/prompts.js'
 import { requireUser, rpcAsUser } from './_lib/supabase.js'
 
 const MODEL = () => env('AI_MODEL') ?? 'claude-opus-5-5'
@@ -23,17 +23,19 @@ export function GET(): Promise<Response> {
 }
 
 interface Body {
-  mode?: 'answer' | 'script'
+  mode?: Mode
   input?: string
   context?: string
   style?: string
+  /** Recent questions and answers, for follow-ups. */
+  history?: string
 }
 
 export function POST(request: Request): Promise<Response> {
   return handle(async () => {
     const user = await requireUser(request)
-    const { mode = 'answer', input = '', context = '', style = '' } = await readJson<Body>(request)
-    if (mode !== 'answer' && mode !== 'script') throw new HttpError(400, 'Unknown mode.')
+    const { mode = 'answer', input = '', context = '', style = '', history = '' } = await readJson<Body>(request)
+    if (mode !== 'answer' && mode !== 'script' && mode !== 'suggest') throw new HttpError(400, 'Unknown mode.')
     if (!input.trim()) throw new HttpError(400, 'Nothing to answer.')
     const apiKey = env('ANTHROPIC_API_KEY')
     if (!apiKey) throw new HttpError(503, "The built-in AI isn't switched on yet. Add your own API key in Settings → SI.", 'AI_NOT_CONFIGURED')
@@ -44,7 +46,7 @@ export function POST(request: Request): Promise<Response> {
     const stream = client.beta.messages.stream(
       {
         model: MODEL(),
-        max_tokens: 4000,
+        max_tokens: mode === 'suggest' ? 1500 : 4000,
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default',
         output_config: { effort: EFFORT() },
@@ -55,6 +57,7 @@ export function POST(request: Request): Promise<Response> {
             content: [
               // The deck repeats across questions during a call: cache it.
               { type: 'text', text: `<material>\n${context.slice(0, MAX_CONTEXT)}\n</material>`, cache_control: { type: 'ephemeral' } },
+              ...(mode === 'answer' && history.trim() ? [{ type: 'text' as const, text: `<conversation>\n${history.slice(-6000)}\n</conversation>` }] : []),
               { type: 'text', text: mode === 'answer' ? `<question>${input.slice(0, 2000)}</question>` : `<slide>${input.slice(0, 8000)}</slide>` },
             ],
           },

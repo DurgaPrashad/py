@@ -6,7 +6,9 @@ import { Button, IconButton } from '../components/Button'
 import { Kbd, Toggle } from '../components/controls'
 import { FitBox } from '../components/FitBox'
 import { toast } from '../components/Toast'
-import { CopilotPanel } from '../features/copilot/CopilotPanel'
+import { useAccount } from '../features/account/account'
+import { deckContext, runCopilot } from '../features/copilot/api'
+import { CopilotPanel, type ScriptView } from '../features/copilot/CopilotPanel'
 import { useCopilot } from '../features/copilot/useCopilot'
 import { MicStatus } from '../features/speech/MicStatus'
 import { ModelList } from '../features/speech/ModelList'
@@ -18,17 +20,15 @@ import { useCameraAnchor } from '../features/teleprompter/useCameraAnchor'
 import { CommandMatcher } from '../services/alignment/commands'
 import { SyncSession } from '../services/alignment/syncSession'
 import { speech } from '../services/speech/speechService'
-import { loadPresentation } from '../services/storage/projects'
+import { loadPresentation, savePresentation, withWords } from '../services/storage/projects'
 import { platform } from '../platform'
 import { errorMessage } from '../services/tauri'
 import type { MonitorInfo, Presentation, ScriptWord, Settings, Slide, VoiceCommand } from '../types'
 import { formatClock } from '../utils/format'
 import { HOME } from '../utils/routes'
 
-/** Width of the SI copilot panel beside the slide. */
-const SIDE_PANEL_W = 360
-/** Extra height of the browser's floating window when it also shows the copilot. */
-const PIP_COPILOT_H = 220
+/** Extra height of the browser's floating window when it also shows the assistant. */
+const PIP_COPILOT_H = 380
 
 const COMMAND_LABEL: Record<VoiceCommand, string> = {
   next: 'Next slide',
@@ -70,8 +70,8 @@ export function PresentPage() {
   const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const engine = useSpeechEngine(!!p && voiceEnabled, settings.speech)
-  const copilot = useCopilot(p, slideIndex, settings.speech.modelId)
   const [copilotOpen, setCopilotOpen] = useState(false)
+  const copilot = useCopilot(p, slideIndex, settings.speech.modelId, copilotOpen)
   // For handlers registered once (speech, keyboard).
   const copilotRef = useRef(copilot)
   useLayoutEffect(() => {
@@ -151,6 +151,28 @@ export function PresentPage() {
     setSpoken(s.aligner.position >= 0)
     setAtEnd(s.aligner.atEnd)
   }, [])
+
+  // "Generate with AI" for a slide without a script: SI drafts it and it's saved.
+  const [generating, setGenerating] = useState(false)
+  const generateScript = useCallback(async () => {
+    if (!p || generating) return
+    const at = slideIndex
+    const target = p.slides[at]
+    if (!target) return
+    setGenerating(true)
+    try {
+      const source = [target.extractedText, target.notes].filter((t) => t.trim()).join('\n\n') || `Slide ${at + 1} of “${p.name}”`
+      const res = await runCopilot(settings.si, 'script', source, deckContext(p, at))
+      const saved = await savePresentation({ ...p, slides: p.slides.map((s, i) => (i === at ? withWords({ ...s, script: res.text }) : s)) })
+      setP(saved)
+      if (!res.si) void useAccount.getState().refresh().catch(() => null)
+      showFlash('Script written — edit it any time in the editor')
+    } catch (e) {
+      toast(errorMessage(e), 'error')
+    } finally {
+      setGenerating(false)
+    }
+  }, [p, slideIndex, generating, settings.si, showFlash])
 
   // Latest actions for event handlers registered once.
   const actions = useRef({ goTo, restart, setPausedBoth, showFlash, slideIndex, paused, atEnd })
@@ -439,6 +461,16 @@ export function PresentPage() {
   if (!p || !slide) return <div className="h-full bg-black" />
 
   const highlight = tp.highlightTarget === 'next' && spoken ? Math.min(wordIndex + 1, words.length - 1) : wordIndex
+  // The assistant's script section: the slide on screen, kept in sync with the voice position.
+  const scriptView: ScriptView = {
+    title: p.name,
+    slideLabel: `Slide ${slideIndex + 1} / ${total}`,
+    words,
+    wordIndex,
+    spoken,
+    onGenerate: () => void generateScript(),
+    generating,
+  }
   const isLast = slideIndex === total - 1
   const dual = !!slidesWindow
   const nextSlide = p.slides[slideIndex + 1]
@@ -465,7 +497,19 @@ export function PresentPage() {
         config={tp}
         onWordClick={placeWord}
         pad={camera ? 4 : 28}
-        emptyText="No script for this slide — add one in the editor"
+        emptyText={
+          <>
+            <span>No script for this slide</span>
+            <button
+              type="button"
+              disabled={generating}
+              onClick={() => void generateScript()}
+              className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-accent-soft px-2.5 text-[12.5px] font-medium text-accent hover:brightness-125 disabled:opacity-60"
+            >
+              {generating ? 'Writing…' : 'Generate with AI'}
+            </button>
+          </>
+        }
       />
       {showTranscript && (
         <div className="selectable truncate pb-2 text-center text-[12px] text-subtle" title="What the speech engine heard">
@@ -525,7 +569,7 @@ export function PresentPage() {
       onNext={() => goTo(slideIndex + 1)}
       onTogglePause={() => setPausedBoth(!paused)}
       onExit={() => navigate(-1)}
-      extra={pipWindow && copilotInPip ? <CopilotPanel copilot={copilot} variant="strip" /> : undefined}
+      extra={pipWindow && copilotInPip ? <CopilotPanel copilot={copilot} script={scriptView} variant="strip" /> : undefined}
       promptH={compactH}
     />
   )
@@ -571,7 +615,7 @@ export function PresentPage() {
         onTogglePause={() => setPausedBoth(!paused)}
         onRestart={restart}
         onExit={() => navigate(-1)}
-        copilot={copilotOpen ? <CopilotPanel copilot={copilot} variant="side" onClose={() => setCopilotOpen(false)} /> : null}
+        copilot={copilotOpen ? <CopilotPanel copilot={copilot} script={scriptView} variant="side" onClose={() => setCopilotOpen(false)} /> : null}
         copilotOpen={copilotOpen}
         onToggleCopilot={() => setCopilotOpen((v) => !v)}
       />
@@ -580,21 +624,20 @@ export function PresentPage() {
 
   // In browser share mode the tab itself is what the audience sees: deck only.
   const deckOnly = web && shareLive && !!pipWindow
-  const si = settings.si
-  const sidePanel = copilotOpen && !deckOnly && si.panel === 'side'
-  const topPanel = copilotOpen && !deckOnly && si.panel === 'top'
-  // The top box sits right under the text bar (or the under-camera strip).
-  const topPanelTop = (camera ? camTop + stripH : tp.position === 'top' ? stripH : 0) + 10
-  const topPanelW = Math.min(viewportW - 24, Math.max(340, (viewportW * si.width) / 100))
+  const sidePanel = copilotOpen && !deckOnly
+  const panelW = Math.min(settings.si.panelWidth, Math.max(300, viewportW * 0.42))
 
   return (
-    <div className={`dark relative h-full overflow-hidden bg-black text-fg ${controlsHidden ? 'cursor-none' : ''}`}>
+    <div
+      className={`dark relative h-full overflow-hidden text-fg ${deckOnly ? 'bg-black' : 'bg-[#0d0e12]'} ${controlsHidden ? 'cursor-none' : ''}`}
+      style={deckOnly ? undefined : { backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgb(255 255 255 / 0.045), transparent 70%)' }}
+    >
       {pipWindow && createPortal(floating, pipWindow.document.body)}
       {!deckOnly && strip}
 
       <div
         className="absolute inset-0 flex items-center justify-center gap-6 px-6"
-        style={deckOnly ? { padding: 0 } : { paddingTop: padTop, paddingBottom: padBottom, paddingRight: sidePanel ? SIDE_PANEL_W + 40 : undefined }}
+        style={deckOnly ? { padding: 0 } : { paddingTop: padTop, paddingBottom: padBottom, paddingRight: sidePanel ? panelW + 40 : undefined }}
         data-tauri-drag-region
       >
         <div className={`flex h-full min-w-0 items-center justify-center ${dual && !deckOnly ? 'flex-[3]' : 'w-full'}`}>
@@ -625,13 +668,8 @@ export function PresentPage() {
       </div>
 
       {sidePanel && (
-        <aside className="absolute right-4 z-30 animate-rise" style={{ top: Math.max(16, padTop - 14), bottom: padBottom - 8, width: SIDE_PANEL_W }}>
-          <CopilotPanel copilot={copilot} variant="side" onClose={() => setCopilotOpen(false)} />
-        </aside>
-      )}
-      {topPanel && (
-        <aside className="absolute z-30 animate-rise" style={{ top: topPanelTop, left: (viewportW - topPanelW) / 2, width: topPanelW }}>
-          <CopilotPanel copilot={copilot} variant="top" onClose={() => setCopilotOpen(false)} />
+        <aside className="absolute right-4 z-30 animate-rise" style={{ top: Math.max(16, padTop - 14), bottom: padBottom - 8, width: panelW }}>
+          <CopilotPanel copilot={copilot} script={scriptView} variant="side" onClose={() => setCopilotOpen(false)} />
         </aside>
       )}
 

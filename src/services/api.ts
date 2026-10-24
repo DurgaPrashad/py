@@ -26,7 +26,8 @@ export async function api(path: string, init: RequestInit = {}): Promise<Respons
       ...init,
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers },
     })
-  } catch {
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') throw e
     throw new ApiError("Couldn't reach the server. Check your connection and try again.", null, 0)
   }
   if (!res.ok) {

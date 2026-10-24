@@ -93,9 +93,14 @@ function Hero() {
           <PrimaryLink to="/signup">
             Start {TRIAL_DAYS}-day free trial <ArrowRight size={17} />
           </PrimaryLink>
-          <SecondaryLink to="/pricing">See pricing — from ${PLANS.standard_monthly.price}/mo</SecondaryLink>
+          <DesktopCta />
         </div>
-        <p className="mt-4 text-[13px] text-slate-500">No card needed · Works with Google Meet, Zoom and Microsoft Teams · Runs in your browser</p>
+        <p className="mt-4 text-[13px] text-slate-500">
+          No card needed · Works with Google Meet, Zoom and Microsoft Teams ·{' '}
+          <Link to="/pricing" className="font-medium text-slate-700 underline-offset-2 hover:underline">
+            Pricing from ${PLANS.standard_monthly.price}/mo
+          </Link>
+        </p>
         <HeroPreview />
       </div>
     </header>
@@ -192,6 +197,24 @@ function HeroPreview() {
 }
 
 const PREVIEW_ANSWER = answerLayout("We're raising $1.5M for 18 months of runway.\n• 50% engineering — two senior hires\n• 30% go-to-market in the US\n• 20% infrastructure")
+
+/** The landing page's premium desktop download button (jumps to the download section). */
+function DesktopCta() {
+  return (
+    <a
+      href="#download"
+      className="group inline-flex h-12 items-center gap-3 rounded-xl bg-gradient-to-b from-slate-800 to-slate-950 pr-5 pl-4 text-left text-white shadow-[0_14px_34px_-12px_rgba(15,23,42,0.75),inset_0_1px_0_rgba(255,255,255,0.14)] ring-1 ring-slate-900/10 transition hover:-translate-y-px hover:from-slate-700"
+    >
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
+        <Download size={16} />
+      </span>
+      <span className="leading-tight">
+        <span className="block text-[14.5px] font-semibold">Download for Desktop</span>
+        <span className="block text-[11.5px] text-white/60">macOS · Apple Silicon · free trial</span>
+      </span>
+    </a>
+  )
+}
 
 function StatBand() {
   return (
@@ -422,7 +445,7 @@ function DownloadSection() {
         <div className="mx-auto flex max-w-4xl flex-col items-start justify-between gap-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-sm md:flex-row md:items-center md:p-9">
           <div>
             <div className="flex items-center gap-2 text-[18px] font-semibold">
-              <Laptop size={20} className="text-orange-600" /> Prefer an app? Get Present for Mac
+              <Laptop size={20} className="text-orange-600" /> Prefer an app? Get Present for Desktop
             </div>
             <p className="mt-2 text-[14.5px] leading-relaxed text-slate-600">
               {release
@@ -439,14 +462,14 @@ function DownloadSection() {
               <a
                 href={`${import.meta.env.BASE_URL}downloads/${release.file}`}
                 download
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-[15px] font-medium text-white hover:bg-slate-800"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-slate-800 to-slate-950 px-6 text-[15px] font-medium text-white shadow-[0_10px_30px_-10px_rgba(15,23,42,0.7),inset_0_1px_0_rgba(255,255,255,0.12)] hover:from-slate-700"
               >
-                <Download size={17} /> Download for Mac
+                <Download size={17} /> Download for Desktop
               </a>
             ) : (
               <SecondaryLink to="/app">Use the web app</SecondaryLink>
             )}
-            <SecondaryLink to="/download">Install guide</SecondaryLink>
+            <SecondaryLink to="/download">Installation guide</SecondaryLink>
           </div>
         </div>
       </div>

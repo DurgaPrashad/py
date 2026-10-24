@@ -178,35 +178,28 @@ export function DocsPage() {
 
           <Doc id="si-copilot" title="SI copilot">
             <p>
-              SI (Super Intelligence) is the agent at your side: it suggests answers to the questions people ask you on a call, using only your deck, scripts, notes, Q&A prep notes and sources. It
-              never invents numbers: if your material doesn't cover a question, it says so and suggests an honest follow-up.
+              SI (Super Intelligence) is the assistant beside your slide. Press <code>Q</code> (or the ✦ button) while presenting. It has three parts:
             </p>
             <ol>
               <li>
-                While presenting press <code>Q</code> (or the ✦ button) to open the copilot.
+                <strong>Script</strong> — the speaker script for the slide on screen. It changes with the slide, and the sentence you're speaking is
+                highlighted. A slide without a script offers <strong>Generate with AI</strong>.
               </li>
               <li>
-                Click <strong>Listen to the call</strong> (Chrome/Edge) and choose the tab your meeting runs in with <strong>“Also share tab audio”</strong>{' '}
-                switched on. The call audio is transcribed on your computer.
+                <strong>Question | Answer</strong> — type a question (Enter to send) or pick one of two <strong>suggested questions</strong> for the slide.
+                The answer streams in on the Answer tab, built only from your deck, notes and sources. As you read it aloud, its highlight follows your
+                voice. Follow-up questions keep the earlier conversation in mind.
               </li>
               <li>
-                What the other person says appears as live text chips. SI waits until they've finished the question (a short pause), joins questions asked
-                in several parts, and streams an answer seconds later. Turn off <em>Answer detected questions automatically</em> to answer only on demand.
-              </li>
-              <li>
-                <strong>Answer</strong> (<code>⌘↵</code> / <code>Ctrl+↵</code>) answers whatever was just said, even if it didn't sound like a question.{' '}
-                <strong>Ask</strong> lets you type a question. <code>⌘←</code> / <code>⌘→</code> step through earlier answers.
-              </li>
-              <li>
-                As you read an answer aloud, the <strong>highlight follows your voice</strong> word by word, just like the script. Choose pill, underline,
-                colour or bold in <em>Settings → SI copilot</em>.
+                <strong>Controls</strong> — <strong>Listen</strong> (web: share your meeting tab with “Also share tab audio”), <strong>Answer</strong>{' '}
+                (<code>⌘↵</code> / <code>Ctrl+↵</code>: answer what was just said), earlier answers (<code>⌘←</code> / <code>⌘→</code>), Clear and Hide.
               </li>
             </ol>
             <p>
-              The copilot appears as a small box right under the top text bar (or as a side panel). Its text size, width and black-background
-              transparency are adjustable in <em>Settings → SI copilot</em>. In call mode it appears in the floating teleprompter window, so it's never part
-              of the tab you share. In the Mac app you can type
-              questions; listening to call audio needs the web app.
+              When listening, SI waits until someone finishes a question (a short pause) and joins questions asked in several parts before answering.
+              Panel width, text size, background transparency and highlight style are in <em>Settings → SI copilot</em>. On calls the assistant sits in
+              the floating window with your script, so it's never part of the tab you share. In the Mac app you can type questions; listening to call
+              audio needs the web app.
             </p>
           </Doc>
 

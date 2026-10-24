@@ -757,24 +757,12 @@ function SiSection() {
 
       <div className="pt-6 pb-2 text-[12px] font-semibold tracking-wide text-subtle uppercase">Look while presenting</div>
       <SiPreview />
-      <Row label="Where it appears" hint="Under the top bar keeps answers next to your script. Press Q while presenting to show or hide it.">
-        <Segmented
-          value={si.panel}
-          onChange={(panel) => update('si', { panel })}
-          options={[
-            { value: 'top', label: 'Under the top bar' },
-            { value: 'side', label: 'Side panel' },
-          ]}
-        />
+      <Row label="Panel width" hint="The assistant sits beside the slide while you present. Press Q to show or hide it.">
+        <Slider value={si.panelWidth} min={320} max={560} step={10} onChange={(panelWidth) => update('si', { panelWidth })} format={(v) => `${v}px`} />
       </Row>
       <Row label="Text size">
         <Slider value={si.textSize} min={11} max={24} onChange={(textSize) => update('si', { textSize })} format={(v) => `${v}px`} />
       </Row>
-      {si.panel === 'top' && (
-        <Row label="Box width" hint="Width of the answer box under the top bar.">
-          <Slider value={si.width} min={30} max={100} onChange={(width) => update('si', { width })} format={(v) => `${v}%`} />
-        </Row>
-      )}
       <Row label="Background opacity" hint="How dark the black background behind the answers is. Lower shows more of the slide through it.">
         <Slider value={si.opacity} min={0.2} max={1} step={0.02} onChange={(opacity) => update('si', { opacity })} format={(v) => `${Math.round(v * 100)}%`} />
       </Row>
@@ -901,7 +889,7 @@ function SiPreview() {
     <div className="mb-3 overflow-hidden rounded-xl border border-line bg-[linear-gradient(135deg,#f6f5f1_0%,#e8e4dc_100%)] p-5">
       <div
         className="mx-auto rounded-2xl border border-white/10 px-3.5 py-2.5 text-white shadow-xl backdrop-blur"
-        style={{ background: `rgb(8 8 10 / ${Math.round(si.opacity * 100)}%)`, width: si.panel === 'top' ? `${Math.max(40, si.width)}%` : '60%' }}
+        style={{ background: `rgb(22 23 28 / ${Math.round(si.opacity * 100)}%)`, width: `${Math.min(100, (si.panelWidth / 560) * 100)}%` }}
       >
         <div className="flex items-center gap-1.5 text-[12px] font-semibold">
           <Sparkles size={12} className="text-accent" /> SI copilot
