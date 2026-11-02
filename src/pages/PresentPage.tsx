@@ -440,12 +440,12 @@ export function PresentPage() {
   // the slides window fills the screen.
   useEffect(() => {
     if (!compact || !platform.windows.setPresenterCompact) return
-    return () => void platform.windows.setPresenterCompact?.(false, 0, 0)
+    return () => void platform.windows.setPresenterCompact?.(false, 0, 0, false)
   }, [compact])
   useEffect(() => {
     if (!compact) return
-    void platform.windows.setPresenterCompact?.(true, Math.round(screen.width * (tp.width / 100)), floatingH)
-  }, [compact, tp.width, floatingH])
+    void platform.windows.setPresenterCompact?.(true, Math.round(screen.width * (tp.width / 100)), floatingH, settings.display.hideFloatingFromCapture)
+  }, [compact, tp.width, floatingH, settings.display.hideFloatingFromCapture])
 
   // Layout: strip under the camera (or a top / bottom bar), slide below.
   const camera = tp.position === 'camera'
@@ -717,6 +717,8 @@ export function PresentPage() {
           pipSupported={web && 'documentPictureInPicture' in window}
           copilot={copilotInPip}
           onCopilotChange={setCopilotInPip}
+          hideFromCapture={settings.display.hideFloatingFromCapture}
+          onHideFromCaptureChange={(on) => updateSettings('display', { hideFloatingFromCapture: on })}
           onStart={startShare}
           onCancel={() => navigate(-1)}
         />
@@ -869,6 +871,8 @@ function ShareSetup({
   pipSupported,
   copilot,
   onCopilotChange,
+  hideFromCapture,
+  onHideFromCaptureChange,
   onStart,
   onCancel,
 }: {
@@ -876,6 +880,8 @@ function ShareSetup({
   pipSupported: boolean
   copilot: boolean
   onCopilotChange: (on: boolean) => void
+  hideFromCapture: boolean
+  onHideFromCaptureChange: (on: boolean) => void
   onStart: () => void
   onCancel: () => void
 }) {
@@ -912,7 +918,8 @@ function ShareSetup({
           ))}
         </ol>
         <p className="mt-4 text-[12px] leading-relaxed text-subtle">
-          Sharing your entire screen shows every window on it, including the teleprompter — share the {web && pipSupported ? 'tab' : 'slides window'} instead.
+          To keep the teleprompter out for certain, share or record only the {web && pipSupported ? 'tab' : 'slides window'}, not your entire screen.
+          {web && ' A website can’t hide its own windows from a screen recording.'}
           {web && pipSupported && ' Your browser always shows this site’s address at the top of the floating window. The Mac app has no address bar.'}
         </p>
         {web && pipSupported && (
@@ -921,6 +928,15 @@ function ShareSetup({
             <span className="text-[12.5px] leading-relaxed text-muted">
               <span className="font-medium text-fg">SI in the floating window</span> — the window shows only your reading text. Open SI from its small dropdown
               when you want it.
+            </span>
+          </label>
+        )}
+        {!web && (
+          <label className="mt-4 flex items-start gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">
+            <Toggle checked={hideFromCapture} onChange={onHideFromCaptureChange} label="Leave the teleprompter out of recordings" />
+            <span className="text-[12.5px] leading-relaxed text-muted">
+              <span className="font-medium text-fg">Leave the teleprompter out of recordings</span> — asks macOS to skip this strip, so start recording after you
+              click Start. Newer apps, including QuickTime, can ignore that, so test yours first. Turn this off to film the strip itself.
             </span>
           </label>
         )}

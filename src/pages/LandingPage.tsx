@@ -479,7 +479,7 @@ function CallsSection() {
         </div>
         <p className="mx-auto mt-6 max-w-3xl text-center text-[13.5px] leading-relaxed text-slate-500">
           Share the <b className="font-semibold text-slate-700">tab</b> or the <b className="font-semibold text-slate-700">slides window</b>, not “Entire
-          screen” — sharing the entire screen sends everything on it, including the teleprompter.
+          screen” — sharing the entire screen can send the teleprompter too.
         </p>
       </div>
     </section>
@@ -536,7 +536,7 @@ function DownloadSection() {
 const FAQ: [string, string][] = [
   [
     'Can the audience see my script?',
-    'Not if you share the slides tab or slides window, which is what Present on a call sets up. If you share your entire screen, everything on it is shared — so share the tab or window instead.',
+    'Not if you share the slides tab or slides window, which is what Present on a call sets up. If you share your entire screen, your script can be shared too — so share the tab or window instead.',
   ],
   [
     'Does it work with Google Meet, Zoom and Microsoft Teams?',

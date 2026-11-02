@@ -119,6 +119,8 @@ export interface Settings {
     audienceMonitor: number | null
     /** Small input level bars next to the mic status. */
     showLevelMeter: boolean
+    /** Desktop: ask the OS to leave the floating strip out of recordings. Newer recorders can ignore this. */
+    hideFloatingFromCapture: boolean
     /** Fade the bottom controls out while presenting until the mouse moves. */
     autoHideControls: boolean
   }

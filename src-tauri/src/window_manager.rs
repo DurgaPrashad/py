@@ -2,8 +2,9 @@
 //! that shows only the slides, typically on a projector or external display,
 //! while the main window keeps the private presenter view.
 //!
-//! These are ordinary, visible OS windows. There is deliberately no attempt
-//! to hide anything from screen sharing or capture.
+//! These are ordinary, visible OS windows. The one exception is the floating
+//! strip, which can ask macOS to leave it out of captures (see
+//! `set_presenter_compact`); newer recorders are free to ignore that.
 
 use serde::Serialize;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -111,6 +112,10 @@ pub struct CompactState(parking_lot::Mutex<Option<(tauri::PhysicalPosition<i32>,
 /// Screen-share mode on desktop: the presenter window becomes a floating,
 /// always-on-top strip directly under the camera (the slides window, which is
 /// what gets shared, fills the screen behind it). `compact: false` restores it.
+///
+/// `hide_from_capture` asks macOS to leave the strip out of recordings and
+/// shares. Since macOS 15 apps using ScreenCaptureKit, QuickTime among them,
+/// capture it anyway, so only sharing the slides window is a guarantee.
 #[tauri::command]
 pub async fn set_presenter_compact(
     app: AppHandle,
@@ -118,10 +123,12 @@ pub async fn set_presenter_compact(
     compact: bool,
     width: f64,
     height: f64,
+    hide_from_capture: bool,
 ) -> CmdResult<()> {
     let Some(main) = app.get_webview_window("main") else {
         return err("main window not found");
     };
+    main.set_content_protected(compact && hide_from_capture)?;
     if compact {
         // Called again when SI opens or closes: then only the size changes, so
         // the strip stays wherever the presenter put it.

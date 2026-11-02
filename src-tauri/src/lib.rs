@@ -49,6 +49,7 @@ pub fn run() {
             dev_selftest_file,
             dev_selftest_shots,
             capture_check::dev_capture_window,
+            capture_check::dev_window_hidden_from_capture,
             storage::app_paths,
             storage::storage_list_projects,
             storage::storage_load_project,

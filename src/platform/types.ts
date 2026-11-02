@@ -63,7 +63,7 @@ export interface Platform {
     /** Opens OS screen-recording permissions, when the platform has such a page. */
     openScreenRecordingSettings: (() => Promise<void>) | null
     /** Desktop: shrink the presenter into a floating strip under the camera. */
-    setPresenterCompact: ((compact: boolean, width: number, height: number) => Promise<void>) | null
+    setPresenterCompact: ((compact: boolean, width: number, height: number, hideFromCapture: boolean) => Promise<void>) | null
   }
   /** Open an https page in the browser (a new tab on the web, the default browser on desktop). */
   openExternal(url: string): Promise<void>

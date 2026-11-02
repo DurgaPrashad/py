@@ -60,11 +60,29 @@ async function testCapture(deck: string) {
     const full = await invoke<CaptureStats>('dev_capture_window', { label: 'main' })
     await log(`presenter window (fullscreen) capture: ${describe(full)}`)
     await invoke('set_main_fullscreen', { fullscreen: false })
+    // The floating strip can ask to be left out of captures; the slides stay in.
+    const strip = async (hideFromCapture: boolean) => {
+      await invoke('set_presenter_compact', { compact: true, width: 900, height: 118, hideFromCapture })
+      await sleep(800)
+      const asked = await invoke<boolean>('dev_window_hidden_from_capture', { label: 'main' })
+      const seen = await invoke<CaptureStats>('dev_capture_window', { label: 'main' }).then(describe, errorMessage)
+      await log(`strip, hide ${hideFromCapture}: asked macOS to skip it ${asked}, older capture path: ${seen}`)
+      return asked
+    }
+    const stripHidden = await strip(true)
+    const slidesBehind = await invoke<CaptureStats>('dev_capture_window', { label: 'audience' })
+    await log(`slides window behind the hidden strip: ${describe(slidesBehind)}`)
+    const stripShown = await strip(false)
+    await strip(true)
+    await invoke('set_presenter_compact', { compact: false, width: 0, height: 0, hideFromCapture: false })
+    await sleep(300)
+    const restored = await invoke<boolean>('dev_window_hidden_from_capture', { label: 'main' })
     await invoke('close_audience_window')
     window.location.hash = '#/'
     await sleep(300)
     await deletePresentation(p.id)
-    const ok = slides.white > 0.2 && slides.distinctColors > 3 && main.distinctColors > 3 && full.distinctColors > 3
+    const ok =
+      slides.white > 0.2 && slides.distinctColors > 3 && main.distinctColors > 3 && full.distinctColors > 3 && stripHidden && !stripShown && !restored && slidesBehind.white > 0.2
     await log(ok ? 'SELFTEST PASS: windows are capturable with slide content' : 'SELFTEST FAIL: a captured window looked blank', ok ? 'info' : 'error')
   } catch (e) {
     await log(`SELFTEST FAIL: ${errorMessage(e)}`, 'error')

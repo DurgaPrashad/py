@@ -69,7 +69,7 @@ export const desktop: Platform = {
     cameraAnchor: () => invoke<CameraAnchor>('camera_anchor'),
     onMoved: (cb) => sync(getCurrentWindow().onMoved(() => cb())),
     openScreenRecordingSettings: () => invoke('open_screen_recording_settings'),
-    setPresenterCompact: (compact, width, height) => invoke('set_presenter_compact', { compact, width, height }),
+    setPresenterCompact: (compact, width, height, hideFromCapture) => invoke('set_presenter_compact', { compact, width, height, hideFromCapture }),
   },
   openExternal: (url) => invoke('open_external', { url }),
   audience: {

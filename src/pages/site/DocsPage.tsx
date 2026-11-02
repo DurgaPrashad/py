@@ -191,8 +191,14 @@ export function DocsPage() {
               </li>
             </ul>
             <p>
-              Share the <strong>tab</strong> or the <strong>slides window</strong>, not “Entire screen” — sharing the entire screen shows everything on it,
-              including the teleprompter.
+              Share the <strong>tab</strong> or the <strong>slides window</strong>, not “Entire screen” — sharing the entire screen can show the teleprompter
+              too.
+            </p>
+            <p>
+              <strong>Screen recordings:</strong> record that same tab or window, which keeps the teleprompter out on any recorder. On a Mac, press{' '}
+              <code>⌘⇧5</code> and choose <em>Record a window</em>, then click the slides. A website can't hide its own windows from a recording of your whole
+              screen. In the Mac app, <em>Leave the teleprompter out of recordings</em> on the setup screen asks macOS to skip the reading strip, but newer
+              apps, including QuickTime, can ignore that, so test yours first. Start recording after you click Start.
             </p>
           </Doc>
 

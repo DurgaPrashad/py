@@ -68,6 +68,34 @@ mod ffi {
     pub const NOMINAL_RESOLUTION: u32 = 1 << 4;
 }
 
+/// Whether this window has asked macOS to leave it out of captures.
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub async fn dev_window_hidden_from_capture(app: AppHandle, label: String) -> CmdResult<bool> {
+    use objc2_app_kit::{NSWindow, NSWindowSharingType};
+
+    let Some(window) = app.get_webview_window(&label) else {
+        return err(format!("no window {label}"));
+    };
+    let (tx, rx) = std::sync::mpsc::channel();
+    let w = window.clone();
+    window.run_on_main_thread(move || {
+        let hidden = w.ns_window().map(|ptr| {
+            // SAFETY: tao hands out a valid NSWindow pointer for this window.
+            let ns_window = unsafe { &*(ptr as *const NSWindow) };
+            ns_window.sharingType() == NSWindowSharingType::None
+        });
+        let _ = tx.send(hidden);
+    })?;
+    Ok(rx.recv().map_err(|e| e.to_string())??)
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+pub async fn dev_window_hidden_from_capture(_app: AppHandle, _label: String) -> CmdResult<bool> {
+    err("window capture diagnostic is macOS only")
+}
+
 #[cfg(target_os = "macos")]
 #[tauri::command]
 pub async fn dev_capture_window(app: AppHandle, label: String, save_path: Option<String>) -> CmdResult<CaptureStats> {

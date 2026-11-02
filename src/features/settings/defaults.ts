@@ -44,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
     mode: 'fullscreen',
     audienceMonitor: null,
     showLevelMeter: false,
+    hideFloatingFromCapture: true,
     autoHideControls: true,
   },
   shortcuts: {
