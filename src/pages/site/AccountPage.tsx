@@ -9,7 +9,7 @@ import { syncPayments } from '../../features/account/checkout'
 import { platform } from '../../platform'
 import { supabase } from '../../services/supabase'
 import { HOME } from '../../utils/routes'
-import { useBuyPlan } from './Pricing'
+import { CouponBox, useBuyPlan } from './Pricing'
 
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—')
 
@@ -34,7 +34,7 @@ export function AccountPage() {
   useEffect(() => setName(profile?.full_name ?? ''), [profile?.full_name])
 
   // Apply any payment whose confirmation was missed, then load the history.
-  const paid = search.get('paid')
+  const paid = search.get('paid') ?? search.get('coupon')
   useEffect(() => {
     if (!session) return
     let live = true
@@ -114,6 +114,12 @@ export function AccountPage() {
         {search.get('paid') && (
           <div className="mt-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14.5px] text-emerald-900">
             <CheckCircle2 size={20} className="shrink-0 text-emerald-600" /> Payment received — thank you! Your plan is active now.
+          </div>
+        )}
+
+        {search.get('coupon') && (
+          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14.5px] text-emerald-900">
+            <CheckCircle2 size={20} className="shrink-0 text-emerald-600" /> Coupon applied — your yearly plan is active, with unlimited presentations.
           </div>
         )}
 
@@ -207,6 +213,9 @@ export function AccountPage() {
               ))}
             </div>
           )}
+          <div className="mt-4">
+            <CouponBox />
+          </div>
           <p className="mt-4 text-[12.5px] text-slate-500">
             Prepaid, no automatic renewal. Extra time is added on top of what you have left. <Link to="/pricing" className="underline">Compare plans</Link> ·{' '}
             <Link to="/refunds" className="underline">Refund policy</Link>
@@ -264,9 +273,9 @@ export function AccountPage() {
                         {fmtDate(p.period_start)} – {fmtDate(p.period_end)}
                       </td>
                       <td className="py-2.5 pr-4">
-                        {(p.amount / 100).toLocaleString(undefined, { style: 'currency', currency: p.currency })}
+                        {p.amount === 0 ? 'Free' : (p.amount / 100).toLocaleString(undefined, { style: 'currency', currency: p.currency })}
                       </td>
-                      <td className="py-2.5 font-mono text-[12.5px] text-slate-500">{p.razorpay_payment_id}</td>
+                      <td className="py-2.5 font-mono text-[12.5px] text-slate-500">{p.razorpay_payment_id?.startsWith('coupon_') ? 'Coupon' : p.razorpay_payment_id}</td>
                     </tr>
                   ))}
                 </tbody>

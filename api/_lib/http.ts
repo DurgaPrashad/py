@@ -54,7 +54,7 @@ export function requireEnv(name: string): string {
 /** Names (never values) of variables that look related — to spot typos and wrong environments. */
 export function relatedEnvNames(): string[] {
   return Object.keys(process.env)
-    .filter((k) => /razorpay|database|postgres|supabase|anthropic|db_url|ai_model|ai_effort/i.test(k))
+    .filter((k) => /razorpay|database|postgres|supabase|anthropic|db_url|ai_model|ai_effort|coupon/i.test(k))
     .sort()
 }
 

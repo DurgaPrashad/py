@@ -3,6 +3,7 @@
  * yes/no only (never the values). Open it after changing environment
  * variables in Vercel to confirm payments are ready.
  */
+import { COUPON_SETTINGS } from './_lib/coupons.js'
 import { db } from './_lib/db.js'
 import { env, handle, json, preflight, relatedEnvNames } from './_lib/http.js'
 import { razorpay, razorpayKeys } from './_lib/razorpay.js'
@@ -57,6 +58,8 @@ export function GET(): Promise<Response> {
         related_variable_names: relatedEnvNames(),
       },
       payments,
+      // Yes/no only: the codes themselves are never shown.
+      coupons: Object.fromEntries(COUPON_SETTINGS.map((name) => [name, !!env(name)])),
     })
   })
 }

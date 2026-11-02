@@ -32,7 +32,7 @@ There is no free plan or trial: after signing up you can prepare up to 5 present
   | `RAZORPAY_KEY_SECRET` | Payments (or Supabase Vault secret `razorpay_key_secret`) | Razorpay Dashboard → API Keys |
   | `DATABASE_URL` | Payments | Supabase → Connect → *Transaction pooler* (port 6543). `POSTGRES_URL` from Vercel's Supabase integration works too |
   | `RAZORPAY_WEBHOOK_SECRET` | Webhook (recommended) | Razorpay → Webhooks → URL `https://present.waspid.com/api/razorpay-webhook`, events `payment.captured`, `order.paid` |
-  | `AI_MODEL`, `AI_EFFORT` | Optional | default `claude-opus-5-5`, `low` |
+  | `COUPON_STANDARD_YEARLY`, `COUPON_SI_YEARLY` | Coupon codes (optional) | Your choice of code. Each gives that yearly plan free, once per account (`api/redeem-coupon.ts`). Changing a value retires the old code |
 - **Settings** (`private.settings`): sign-up rate limit (the AI and trial settings are unused). Prices: `private.plans` (keep `src/config.ts` in step).
 - **Public client config:** `src/config.ts` (Supabase URL + publishable key; override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`).
 - **Sources:** the **+** button on a presentation (or *Sources* in the editor) adds material SI may use — typed text with SI, file uploads (PDF, .docx, text) with SI yearly (`profiles.si_yearly_until`). Files are read on the device; only their text is stored with the presentation.

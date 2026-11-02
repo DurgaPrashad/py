@@ -1,7 +1,7 @@
 {
-  "version": "0.5.2",
+  "version": "0.5.3",
   "file": "Present-macOS-arm64.zip",
   "arch": "arm64",
-  "bytes": 19884403,
-  "built": "2026-10-24"
+  "bytes": 19885355,
+  "built": "2026-11-02"
 }

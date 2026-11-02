@@ -299,7 +299,8 @@ export function DocsPage() {
             <p>
               Pay on your <Link to="/account" className="link">account page</Link> with Razorpay (USD). Plans are prepaid and{' '}
               <strong>never renew automatically</strong>; buying again adds time on top of what you have left. Your plan follows your account into the Mac
-              app. Refunds: see the <Link to="/refunds" className="link">refund policy</Link>.
+              app. Have a coupon code? Enter it under the plans to get its yearly plan free, once per account. Refunds: see the{' '}
+              <Link to="/refunds" className="link">refund policy</Link>.
             </p>
           </Doc>
 

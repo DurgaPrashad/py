@@ -95,6 +95,11 @@ export async function checkout(plan: PlanId): Promise<CheckoutResult> {
   })
 }
 
+/** Applies a coupon code on the server: a yearly plan for free, once per account. */
+export async function redeemCoupon(code: string): Promise<{ plan: PlanId; profile: Profile }> {
+  return apiJson<{ plan: PlanId; profile: Profile }>('/api/redeem-coupon', { code })
+}
+
 /** Applies payments whose confirmation didn't reach us (e.g. the tab closed). */
 export async function syncPayments(): Promise<Profile | null> {
   return apiJson<Profile | null>('/api/sync-payments', {})

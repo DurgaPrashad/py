@@ -1,10 +1,10 @@
 import { ArrowRight, Check, Infinity as InfinityIcon, Loader2, Lock, Presentation, RefreshCcw, ShieldCheck, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '../../components/Toast'
 import { PLANS, planFor, PRESENTATION_LIMIT, SITE_URL, TIER_NAME, type PlanId, type Tier } from '../../config'
 import { entitlements, useAccount } from '../../features/account/account'
-import { checkout } from '../../features/account/checkout'
+import { checkout, redeemCoupon } from '../../features/account/checkout'
 import { platform } from '../../platform'
 import { errorMessage } from '../../services/tauri'
 import { PageHeader, SiteShell } from './SiteShell'
@@ -46,6 +46,125 @@ export function useBuyPlan(afterPaid: string | null = '/account?paid=1') {
     }
   }
   return { buy, busy }
+}
+
+// A code entered before signing in waits here, out of the URL, until the account exists.
+const PENDING_COUPON = 'present.pendingCoupon'
+
+function takePendingCoupon(): string {
+  try {
+    const code = sessionStorage.getItem(PENDING_COUPON) ?? ''
+    sessionStorage.removeItem(PENDING_COUPON)
+    return code
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * "Have a coupon code?" under the plans: closed by default, so it doesn't send
+ * buyers off to hunt for a code. After applying it opens the account page, unless told to `stay`.
+ */
+export function CouponBox({ stay = false }: { stay?: boolean }) {
+  const navigate = useNavigate()
+  const session = useAccount((s) => s.session)
+  const setProfile = useAccount((s) => s.setProfile)
+  const [open, setOpen] = useState(false)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const apply = async (value: string) => {
+    setBusy(true)
+    setError('')
+    try {
+      const { plan, profile } = await redeemCoupon(value)
+      setProfile(profile)
+      toast(`Coupon applied — ${TIER_NAME[PLANS[plan].tier]} is active for a full year, free. Unlimited presentations.`, 'success')
+      setCode('')
+      setOpen(false)
+      // The plan in the URL makes the account page reload its payments for each coupon.
+      if (!stay) navigate(`/account?coupon=${plan}`)
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!session) return
+    const pending = takePendingCoupon()
+    if (!pending) return
+    setOpen(true)
+    setCode(pending)
+    void apply(pending)
+    // Runs once the account is known; `apply` only matters at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id])
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const value = code.trim()
+    if (!value) return
+    if (session) {
+      void apply(value)
+      return
+    }
+    try {
+      sessionStorage.setItem(PENDING_COUPON, value)
+    } catch {
+      // Storage is off: they enter the code again after signing up.
+    }
+    navigate(`/signup?next=${encodeURIComponent('/account')}`)
+  }
+
+  if (!open) {
+    return (
+      <div className="text-center">
+        <button type="button" onClick={() => setOpen(true)} className="text-[13.5px] font-medium text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline">
+          Have a coupon code?
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={submit} className="mx-auto w-full max-w-md">
+      <div className="flex gap-2">
+        <input
+          id="coupon-code"
+          value={code}
+          onChange={(e) => {
+            setCode(e.target.value)
+            setError('')
+          }}
+          autoFocus
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          placeholder="Coupon code"
+          aria-label="Coupon code"
+          aria-invalid={!!error}
+          className={`h-11 min-w-0 flex-1 rounded-xl border bg-white px-3.5 text-[14.5px] text-slate-900 outline-none placeholder:text-slate-400 focus:border-orange-500 ${
+            error ? 'border-red-400' : 'border-slate-300'
+          }`}
+        />
+        <button
+          type="submit"
+          disabled={busy || !code.trim()}
+          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-slate-900 px-5 text-[14.5px] font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+        >
+          {busy && <Loader2 size={15} className="animate-spin" />} Apply
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-[13px] text-red-600">
+          {error}
+        </p>
+      )}
+    </form>
+  )
 }
 
 type Billing = 'month' | 'year'
@@ -201,7 +320,11 @@ export function PricingTable({ afterPaid }: { afterPaid?: string | null }) {
         {card('si')}
       </div>
 
-      <div className="mx-auto mt-8 grid max-w-4xl gap-3 sm:grid-cols-3">
+      <div className="mt-6">
+        <CouponBox stay={afterPaid === null} />
+      </div>
+
+      <div className="mx-auto mt-6 grid max-w-4xl gap-3 sm:grid-cols-3">
         <Assurance icon={<RefreshCcw size={16} />} title="Never renews by itself">
           Each payment covers one month or one year. We never charge you without your click.
         </Assurance>
