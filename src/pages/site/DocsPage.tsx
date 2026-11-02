@@ -180,12 +180,14 @@ export function DocsPage() {
             </p>
             <ul>
               <li>
-                <strong>Browser:</strong> click <strong>Start</strong>. The teleprompter — and the SI copilot, if switched on — pops out into a small floating
-                window you can place under your camera. The tab shows only the deck: in Meet choose <em>Share screen → A tab</em> and pick the Present tab
-                (Zoom/Teams: share that browser tab).
+                <strong>Browser:</strong> click <strong>Start</strong>. The teleprompter pops out into a small floating window showing only your reading
+                text — open SI from its small <strong>SI ▾</strong> dropdown (or press <code>Q</code>). Drag the window under your camera; your browser
+                remembers the spot, and always shows the site's address at the top of it. The tab shows only the deck: in Meet choose{' '}
+                <em>Share screen → A tab</em> and pick the Present tab (Zoom/Teams: share that browser tab).
               </li>
               <li>
-                <strong>Mac app:</strong> the slides fill the screen in a window called <em>Present — Slides (share this window)</em>; share that window.
+                <strong>Mac app:</strong> the slides fill the screen in a window called <em>Present — Slides (share this window)</em>; share that window. The
+                reading strip floats under your camera with no address bar, and SI opens from the same dropdown.
               </li>
             </ul>
             <p>

@@ -8,7 +8,7 @@ import { FitBox } from '../components/FitBox'
 import { toast } from '../components/Toast'
 import { useAccount } from '../features/account/account'
 import { deckContext, runCopilot } from '../features/copilot/api'
-import { SI_HEADER_H, SiPanel } from '../features/copilot/SiPanel'
+import { SI_HEADER_H, SiDropdownPill, SiPanel } from '../features/copilot/SiPanel'
 import { useCopilot } from '../features/copilot/useCopilot'
 import { MicStatus } from '../features/speech/MicStatus'
 import { ModelList } from '../features/speech/ModelList'
@@ -28,7 +28,8 @@ import { formatClock } from '../utils/format'
 import { HOME } from '../utils/routes'
 
 /** Extra height of the browser's floating window when it also shows SI. */
-const PIP_COPILOT_H = 230
+/** Extra height of the floating window while SI is open under the reading text. */
+const FLOATING_SI_H = 230
 
 const COMMAND_LABEL: Record<VoiceCommand, string> = {
   next: 'Next slide',
@@ -73,7 +74,9 @@ export function PresentPage() {
   const [copilotOpen, setCopilotOpen] = useState(false)
   /** Where the presenter dragged SI to (relative to its place under the strip). */
   const [siOffset, setSiOffset] = useState({ x: 0, y: 0 })
-  const copilot = useCopilot(p, slideIndex, settings.speech.modelId, copilotOpen)
+  // The floating window on a call: reading text only, SI opens from a small dropdown.
+  const [floatingSiOpen, setFloatingSiOpen] = useState(false)
+  const copilot = useCopilot(p, slideIndex, settings.speech.modelId, copilotOpen || floatingSiOpen)
   // For handlers registered once (speech, keyboard).
   const copilotRef = useRef(copilot)
   useLayoutEffect(() => {
@@ -228,6 +231,7 @@ export function PresentPage() {
   // window and in the popped-out teleprompter.
   const pipRef = useRef<Window | null>(null)
   const [pipOpen, setPipOpen] = useState(false)
+  const floatingSi = useRef({ active: false, open: false, toggle: () => {} })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest('input, textarea, select')) return
@@ -237,7 +241,8 @@ export function PresentPage() {
       // SI: ⌘↵ answers what was just asked; ⌘← / ⌘→ step through answers.
       if (e.metaKey || e.ctrlKey) {
         if (code === 'Enter') {
-          setCopilotOpen(true)
+          if (!floatingSi.current.active) setCopilotOpen(true)
+          else if (!floatingSi.current.open) floatingSi.current.toggle()
           copilotRef.current.answerNow()
         } else if (code === 'ArrowLeft') copilotRef.current.older()
         else if (code === 'ArrowRight') copilotRef.current.newer()
@@ -257,7 +262,10 @@ export function PresentPage() {
       else if (code === 'ArrowDown') placeWord(Math.min(words.length - 1, (session.current?.aligner.wordIndex ?? 0) + 1))
       else if (code === 'ArrowUp') placeWord((session.current?.aligner.wordIndex ?? 0) - 1)
       else if (code === 'KeyT') setShowTranscript((v) => !v)
-      else if (code === 'KeyQ') setCopilotOpen((v) => !v)
+      else if (code === 'KeyQ') {
+        if (floatingSi.current.active) floatingSi.current.toggle()
+        else setCopilotOpen((v) => !v)
+      }
       else return
       e.preventDefault()
     }
@@ -293,12 +301,32 @@ export function PresentPage() {
   const [slidesWindow, setSlidesWindow] = useState<null | 'share' | 'display'>(null)
   const [shareStage, setShareStage] = useState<'setup' | 'live'>('setup')
   const [pipWindow, setPipWindow] = useState<Window | null>(null)
-  // Browser call mode: show the SI copilot under the floating teleprompter.
+  // Call mode: offer SI in the floating teleprompter window.
   const [copilotInPip, setCopilotInPip] = useState(true)
   const engineOk = engine.status !== 'missing-model' && engine.status !== 'error'
   const shareLive = mode === 'share' && shareStage === 'live'
   const compact = shareLive && !web && engineOk
   const compactH = Math.round(tp.fontSize * 1.94 + 40 + (showTranscript ? 22 : 0))
+  const floatingH = compactH + (floatingSiOpen ? FLOATING_SI_H : 0)
+  const floatingSiOffered = (!!pipWindow || compact) && copilotInPip
+
+  const toggleFloatingSi = () => {
+    const next = !floatingSiOpen
+    const w = pipRef.current
+    if (w) {
+      const height = compactH + (next ? FLOATING_SI_H : 0)
+      try {
+        w.resizeTo(w.outerWidth, height + w.outerHeight - w.innerHeight)
+      } catch {
+        // Only a click or key press in that window may resize it. Without one, open only if SI fits.
+        if (next && w.innerHeight < height - 4) return
+      }
+    }
+    setFloatingSiOpen(next)
+  }
+  useLayoutEffect(() => {
+    floatingSi.current = { active: floatingSiOffered, open: floatingSiOpen, toggle: toggleFloatingSi }
+  })
 
   const openSlidesWindow = useCallback(
     async (share: boolean, monitorIndex: number | null = settings.display.audienceMonitor) => {
@@ -343,16 +371,14 @@ export function PresentPage() {
       const dpip = (window as Window & { documentPictureInPicture?: { requestWindow(o: object): Promise<Window> } }).documentPictureInPicture
       if (dpip) {
         try {
-          // The PiP window's own title bar takes ~90 px; ask for enough room
-          // for the strip, then correct to the exact size once it exists.
-          const pipH = compactH + (copilotInPip ? PIP_COPILOT_H : 0)
-          const w = await dpip.requestWindow({ width: Math.round(Math.min(screen.width * (tp.width / 100), 1400)), height: pipH + 96 })
-          try {
-            const chromeH = w.outerHeight - w.innerHeight
-            if (Math.abs(w.innerHeight - pipH) > 4) w.resizeTo(w.outerWidth, pipH + chromeH)
-          } catch {
-            // resizing needs a user gesture in some browsers; the extra height is fine
-          }
+          // Reading text only; SI grows the window when opened. The browser's own
+          // bar with the site's address stays: browsers don't let a site remove it.
+          setFloatingSiOpen(false)
+          const w = await dpip.requestWindow({
+            width: Math.round(Math.min(screen.width * (tp.width / 100), 1400)),
+            height: compactH,
+            disallowReturnToOpener: true,
+          })
           for (const node of document.head.querySelectorAll('style, link[rel="stylesheet"]')) w.document.head.appendChild(node.cloneNode(true))
           w.document.documentElement.className = 'dark'
           w.document.title = 'Present — Teleprompter'
@@ -373,7 +399,7 @@ export function PresentPage() {
       return
     }
     if (await openSlidesWindow(true)) setShareStage('live')
-  }, [web, tp.width, compactH, copilotInPip, openSlidesWindow])
+  }, [web, tp.width, compactH, openSlidesWindow])
 
   useEffect(() => {
     pipRef.current = pipWindow
@@ -414,9 +440,12 @@ export function PresentPage() {
   // the slides window fills the screen.
   useEffect(() => {
     if (!compact || !platform.windows.setPresenterCompact) return
-    void platform.windows.setPresenterCompact(true, Math.round(screen.width * (tp.width / 100)), compactH)
     return () => void platform.windows.setPresenterCompact?.(false, 0, 0)
-  }, [compact, tp.width, compactH])
+  }, [compact])
+  useEffect(() => {
+    if (!compact) return
+    void platform.windows.setPresenterCompact?.(true, Math.round(screen.width * (tp.width / 100)), floatingH)
+  }, [compact, tp.width, floatingH])
 
   // Layout: strip under the camera (or a top / bottom bar), slide below.
   const camera = tp.position === 'camera'
@@ -575,7 +604,8 @@ export function PresentPage() {
       onNext={() => goTo(slideIndex + 1)}
       onTogglePause={() => setPausedBoth(!paused)}
       onExit={() => navigate(-1)}
-      extra={pipWindow && copilotInPip ? <SiPanel copilot={copilot} compact /> : undefined}
+      si={floatingSiOffered && floatingSiOpen ? <SiPanel copilot={copilot} compact onClose={toggleFloatingSi} /> : undefined}
+      siDropdown={floatingSiOffered && !floatingSiOpen ? <SiDropdownPill copilot={copilot} onOpen={toggleFloatingSi} /> : undefined}
       promptH={compactH}
     />
   )
@@ -783,7 +813,8 @@ function FloatingStrip({
   onNext,
   onTogglePause,
   onExit,
-  extra,
+  si,
+  siDropdown,
   promptH,
 }: {
   prompter: React.ReactNode
@@ -794,16 +825,21 @@ function FloatingStrip({
   onNext: () => void
   onTogglePause: () => void
   onExit: () => void
-  /** Shown under the teleprompter (the SI copilot in the browser's floating window). */
-  extra?: ReactNode
+  /** SI, open under the reading text. */
+  si?: ReactNode
+  /** The small control that opens SI. */
+  siDropdown?: ReactNode
   promptH: number
 }) {
   return (
     <div className="dark group relative flex h-screen w-full flex-col overflow-hidden bg-[#0b0b0e] text-fg" data-tauri-drag-region>
-      {/* Slim top row: status on the left, controls on the right (on hover). */}
-      <div className="flex h-6 shrink-0 items-center justify-between px-3 pt-1" data-tauri-drag-region>
-        <span className="truncate text-[11px] font-medium text-accent/90">{chip ?? ''}</span>
-        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      {/* The reading text keeps the whole window; this row floats over its top edge. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-6 items-center justify-between px-2 pt-1">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+          {siDropdown}
+          {chip && <span className="truncate text-[11px] font-medium text-accent/90">{chip}</span>}
+        </div>
+        <div className="pointer-events-auto flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
           <span className="mr-1 text-[11px] text-subtle tabular">{slideLabel}</span>
           <IconButton label="Previous slide" size="sm" className="!h-5 !w-5" onClick={onPrev}>
             <ChevronLeft size={13} />
@@ -819,10 +855,10 @@ function FloatingStrip({
           </IconButton>
         </div>
       </div>
-      <div className={`flex min-h-0 items-center px-4 pb-2 ${extra ? 'shrink-0' : 'flex-1'}`} style={extra ? { height: promptH - 24 } : undefined}>
+      <div className={`flex min-h-0 items-center px-4 ${si ? 'shrink-0' : 'flex-1'}`} style={si ? { height: promptH } : undefined} data-tauri-drag-region>
         <div className="min-w-0 flex-1">{prompter}</div>
       </div>
-      {extra && <div className="min-h-0 flex-1 border-t border-white/[0.07]">{extra}</div>}
+      {si && <div className="min-h-0 flex-1 border-t border-white/[0.07]">{si}</div>}
     </div>
   )
 }
@@ -877,13 +913,14 @@ function ShareSetup({
         </ol>
         <p className="mt-4 text-[12px] leading-relaxed text-subtle">
           Sharing your entire screen shows every window on it, including the teleprompter — share the {web && pipSupported ? 'tab' : 'slides window'} instead.
+          {web && pipSupported && ' Your browser always shows this site’s address at the top of the floating window. The Mac app has no address bar.'}
         </p>
         {web && pipSupported && (
           <label className="mt-4 flex items-start gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">
-            <Toggle checked={copilot} onChange={onCopilotChange} label="SI copilot in the floating window" />
+            <Toggle checked={copilot} onChange={onCopilotChange} label="SI in the floating window" />
             <span className="text-[12.5px] leading-relaxed text-muted">
-              <span className="font-medium text-fg">SI copilot in the floating window</span> — listens to the call and suggests answers to questions, right
-              under your script.
+              <span className="font-medium text-fg">SI in the floating window</span> — the window shows only your reading text. Open SI from its small dropdown
+              when you want it.
             </span>
           </label>
         )}

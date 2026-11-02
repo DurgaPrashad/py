@@ -123,12 +123,16 @@ pub async fn set_presenter_compact(
         return err("main window not found");
     };
     if compact {
-        {
+        // Called again when SI opens or closes: then only the size changes, so
+        // the strip stays wherever the presenter put it.
+        let already_compact = {
             let mut saved = state.0.lock();
-            if saved.is_none() {
+            let was_compact = saved.is_some();
+            if !was_compact {
                 *saved = Some((main.outer_position()?, main.inner_size()?));
             }
-        }
+            was_compact
+        };
         let Some(monitor) = main.current_monitor()? else {
             return err("no display");
         };
@@ -139,6 +143,9 @@ pub async fn set_presenter_compact(
         let width = width.clamp(320.0, mw - 16.0);
         main.set_min_size(None::<tauri::LogicalSize<f64>>)?;
         main.set_size(tauri::LogicalSize::new(width, height.max(56.0)))?;
+        if already_compact {
+            return Ok(());
+        }
         main.set_position(tauri::LogicalPosition::new(
             mpos.x as f64 / scale + (mw - width) / 2.0,
             mpos.y as f64 / scale + notch.max(0.0) + 4.0,

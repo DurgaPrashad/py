@@ -1,6 +1,6 @@
 [package]
 name = "reflex-presenter"
-version = "0.5.3"
+version = "0.5.4"
 description = "Local-first AI presentation teleprompter"
 authors = ["Reflex Presenter"]
 license = ""

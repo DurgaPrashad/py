@@ -25,7 +25,8 @@ export const SI_HEADER_H = 44
  * a slim header (listening, SI, Listening / Processing / Answer ready, Ask,
  * Answer, history, collapse, close) and a body with the question and its
  * answer, streamed, figures emphasised, highlight following your voice.
- * `onDrag` makes the grip move the panel.
+ * `onDrag` makes the grip move the panel. `compact` is the version inside the
+ * floating window, where `onClose` folds SI back up under the reading text.
  */
 export function SiPanel({
   copilot,
@@ -116,7 +117,7 @@ export function SiPanel({
   const showBody = !collapsed
   return (
     <div
-      className={`selectable flex min-h-0 flex-col overflow-hidden text-white ${compact ? '' : 'rounded-2xl border border-white/10 shadow-[0_18px_50px_-10px_rgba(0,0,0,0.65)] backdrop-blur-xl'}`}
+      className={`selectable flex min-h-0 flex-col overflow-hidden text-white ${compact ? 'h-full' : 'rounded-2xl border border-white/10 shadow-[0_18px_50px_-10px_rgba(0,0,0,0.65)] backdrop-blur-xl'}`}
       style={compact ? undefined : { background: `rgb(24 25 29 / ${Math.round(si.opacity * 100)}%)` }}
     >
       {/* Header */}
@@ -160,7 +161,7 @@ export function SiPanel({
           }`}
         >
           {state.icon}
-          {!compact && state.label}
+          {state.label}
         </span>
         <div className="flex-1" />
         {canAsk && aiReady && (
@@ -184,13 +185,23 @@ export function SiPanel({
             </IconButton>
           </span>
         )}
-        <IconButton title={collapsed ? 'Show the answer' : 'Collapse'} onClick={() => setCollapsed((v) => !v)}>
-          {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-        </IconButton>
-        {onClose && (
-          <IconButton title="Hide SI (Q)" onClick={onClose}>
-            <X size={14} />
-          </IconButton>
+        {compact ? (
+          onClose && (
+            <IconButton title="Close SI (Q)" onClick={onClose}>
+              <ChevronUp size={14} />
+            </IconButton>
+          )
+        ) : (
+          <>
+            <IconButton title={collapsed ? 'Show the answer' : 'Collapse'} onClick={() => setCollapsed((v) => !v)}>
+              {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            </IconButton>
+            {onClose && (
+              <IconButton title="Hide SI (Q)" onClick={onClose}>
+                <X size={14} />
+              </IconButton>
+            )}
+          </>
         )}
       </div>
 
@@ -258,6 +269,36 @@ export function SiPanel({
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * The small "SI ▾" in the floating window: quiet until something needs a look.
+ * A new answer can't open SI by itself, because a site may only resize that
+ * window on a click or key press, so this says when one is waiting.
+ */
+export function SiDropdownPill({ copilot, onOpen }: { copilot: Copilot; onOpen: () => void }) {
+  const newest = copilot.items[0]
+  // Whatever exists when the pill appears was already seen: SI has just closed.
+  const [seenId] = useState(newest?.id)
+  const fresh = newest && newest.id !== seenId ? newest : null
+  const label = fresh?.status === 'answering' ? 'Writing answer' : fresh?.status === 'done' ? 'Answer ready' : fresh?.status === 'error' ? 'Needs a look' : null
+  return (
+    <button
+      type="button"
+      title="Open SI (Q)"
+      aria-expanded={false}
+      onClick={onOpen}
+      className={`flex h-5 shrink-0 items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold transition-colors ${
+        label ? 'bg-orange-400/15 text-orange-300 hover:bg-orange-400/25' : 'text-white/40 hover:bg-white/10 hover:text-white'
+      }`}
+    >
+      {copilot.listen === 'listening' && <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse-dot" />}
+      {fresh?.status === 'answering' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+      SI
+      {label && <span className="font-medium">· {label}</span>}
+      <ChevronDown size={11} />
+    </button>
   )
 }
 
