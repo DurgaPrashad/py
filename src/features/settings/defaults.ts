@@ -17,6 +17,8 @@ export const DEFAULT_SETTINGS: Settings = {
     biasWithScript: false,
   },
   teleprompter: {
+    direction: 'horizontal',
+    lines: 1,
     wordsVisible: 8,
     fontSize: 40,
     width: 72,

@@ -29,6 +29,15 @@ describe('settings migration', () => {
     expect(mergeSettings({ version: 6, si: { ...DEFAULT_SETTINGS.si, provider: 'groq' } }).si.provider).toBe('groq')
   })
 
+  it('gives saved settings from before reading directions the look they already had', () => {
+    const { direction, lines, ...saved } = DEFAULT_SETTINGS.teleprompter
+    expect([direction, lines]).toEqual(['horizontal', 1])
+    const s = mergeSettings({ version: 7, teleprompter: { ...saved, wordsVisible: 10 } })
+    expect(s.teleprompter.direction).toBe('horizontal')
+    expect(s.teleprompter.lines).toBe(1)
+    expect(s.teleprompter.wordsVisible).toBe(10)
+  })
+
   it('keeps a deliberately chosen top strip', () => {
     const s = mergeSettings({ version: 1, teleprompter: { ...DEFAULT_SETTINGS.teleprompter, position: 'top', width: 70 } })
     expect(s.teleprompter.position).toBe('top')

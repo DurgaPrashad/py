@@ -15,6 +15,7 @@ import { ModelList } from '../features/speech/ModelList'
 import { useSpeechEngine } from '../features/speech/useSpeechEngine'
 import { useSettings } from '../features/settings/settingsStore'
 import { SlideImage } from '../features/slides/SlideImage'
+import { promptHeightEm, shownLines } from '../features/teleprompter/layout'
 import { Teleprompter } from '../features/teleprompter/Teleprompter'
 import { useCameraAnchor } from '../features/teleprompter/useCameraAnchor'
 import { CommandMatcher } from '../services/alignment/commands'
@@ -30,6 +31,7 @@ import { HOME } from '../utils/routes'
 /** Extra height of the browser's floating window when it also shows SI. */
 /** Extra height of the floating window while SI is open under the reading text. */
 const FLOATING_SI_H = 230
+const PIP_HEIGHT_KEY = 'present.pipHeight'
 
 const COMMAND_LABEL: Record<VoiceCommand, string> = {
   next: 'Next slide',
@@ -306,7 +308,7 @@ export function PresentPage() {
   const engineOk = engine.status !== 'missing-model' && engine.status !== 'error'
   const shareLive = mode === 'share' && shareStage === 'live'
   const compact = shareLive && !web && engineOk
-  const compactH = Math.round(tp.fontSize * 1.94 + 40 + (showTranscript ? 22 : 0))
+  const compactH = Math.round(tp.fontSize * promptHeightEm(shownLines(tp)) + 40 + (showTranscript ? 22 : 0))
   const floatingH = compactH + (floatingSiOpen ? FLOATING_SI_H : 0)
   const floatingSiOffered = (!!pipWindow || compact) && copilotInPip
 
@@ -332,10 +334,10 @@ export function PresentPage() {
     async (share: boolean, monitorIndex: number | null = settings.display.audienceMonitor) => {
       if (!p) return false
       try {
-        const external = await platform.windows.openSlides(p.id, { monitorIndex, share })
+        await platform.windows.openSlides(p.id, { monitorIndex, share })
         setSlidesWindow(share ? 'share' : 'display')
         platform.windows.sendSlide(actions.current.slideIndex)
-        return external
+        return true
       } catch (e) {
         toast(errorMessage(e), 'error')
         return false
@@ -374,11 +376,28 @@ export function PresentPage() {
           // Reading text only; SI grows the window when opened. The browser's own
           // bar with the site's address stays: browsers don't let a site remove it.
           setFloatingSiOpen(false)
+          // The browser reopens this window at its last size, which would cut off
+          // the text after more lines or a bigger font were chosen in Settings.
+          let sizeChanged = true
+          try {
+            sizeChanged = localStorage.getItem(PIP_HEIGHT_KEY) !== String(compactH)
+          } catch {
+            // Storage blocked: just use the requested size.
+          }
           const w = await dpip.requestWindow({
             width: Math.round(Math.min(screen.width * (tp.width / 100), 1400)),
             height: compactH,
             disallowReturnToOpener: true,
+            preferInitialWindowPlacement: sizeChanged,
           })
+          try {
+            // Only trust a size the browser really used (it can reuse an older one,
+            // or a taller one left by SI); otherwise ask for it outright next time.
+            if (Math.abs(w.innerHeight - compactH) <= 8) localStorage.setItem(PIP_HEIGHT_KEY, String(compactH))
+            else localStorage.removeItem(PIP_HEIGHT_KEY)
+          } catch {
+            // Storage blocked: nothing to remember.
+          }
           for (const node of document.head.querySelectorAll('style, link[rel="stylesheet"]')) w.document.head.appendChild(node.cloneNode(true))
           w.document.documentElement.className = 'dark'
           w.document.title = 'Present — Teleprompter'
@@ -857,7 +876,12 @@ function FloatingStrip({
           </IconButton>
         </div>
       </div>
-      <div className={`flex min-h-0 items-center px-4 ${si ? 'shrink-0' : 'flex-1'}`} style={si ? { height: promptH } : undefined} data-tauri-drag-region>
+      {/* "safe": if the window is dragged too short, keep the first line, which is the one being read. */}
+      <div
+        className={`flex min-h-0 items-center px-4 ${si ? 'shrink-0' : 'flex-1'}`}
+        style={{ alignItems: 'safe center', ...(si ? { height: promptH } : undefined) }}
+        data-tauri-drag-region
+      >
         <div className="min-w-0 flex-1">{prompter}</div>
       </div>
       {si && <div className="min-h-0 flex-1 border-t border-white/[0.07]">{si}</div>}

@@ -139,7 +139,7 @@ export function DocsPage() {
               <em>Settings → Teleprompter</em>.
             </p>
             <p>
-              Text moves as fast as possible by default; slow it down with <em>Text speed</em>. Also in Settings: words visible (4–14), font size, width, background opacity (the black bar's transparency), alignment, highlight style (pill, underline,
+              Text moves as fast as possible by default; slow it down with <em>Text speed</em>. Also in Settings: reading direction (horizontal, or vertical where lines move up as you read), lines shown (1–5, the extra lines show the words coming next), words per line (4–14), font size, width, background opacity (the black bar's transparency), alignment, highlight style (pill, underline,
               colour, bold), highlighting the word just spoken or the next word, dimming spoken words, uppercase, and a live transcript line.
             </p>
           </Doc>

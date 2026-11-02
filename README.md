@@ -1,6 +1,6 @@
 # Present
 
-A local-first, AI-powered presentation teleprompter. Import a PDF or PowerPoint deck, write (or generate) the exact script for each slide, then present: Present listens to your microphone **on your machine**, follows what you say word by word, and shows an 8-word teleprompter strip that glides forward as you speak.
+A local-first, AI-powered presentation teleprompter. Import a PDF or PowerPoint deck, write (or generate) the exact script for each slide, then present: Present listens to your microphone **on your machine**, follows what you say word by word, and shows your script in a slim teleprompter that moves as you speak: sideways on one line, or up the screen on as many as five.
 
 ```
 MICROPHONE → LOCAL SPEECH RECOGNITION → PARTIAL TRANSCRIPT → WORD ALIGNMENT → CURRENT WORD → 8-WORD WINDOW → LIVE HIGHLIGHT
@@ -209,6 +209,7 @@ Development tools (all excluded from production builds):
   (`say -o s.aiff "…" && afconvert -f WAVE -d LEI16@16000 -c 1 s.aiff s.wav` makes test audio on macOS.)
 - **Native self-tests** — `REFLEX_SELFTEST_FILE="/a/deck.pdf|/b/deck.pptx" npm run app:dev` imports files through the real backend and reports to the terminal; prefix an entry with `present:` (a script `.txt`) and set `REFLEX_DEV_AUDIO_FILE=/path/speech.wav` to run presentation mode end to end with a WAV file in place of the microphone.
 - **Capture check** — `REFLEX_SELFTEST_FILE="capture:/path/deck.pdf"` opens the slides window and captures both windows with the macOS window-capture API, reporting how much real content each contains, and checks that the floating strip's capture setting turns on, off and back off when the strip closes.
+- **Reading modes** — `REFLEX_SELFTEST_FILE="present-share-vertical:/script.txt"` (or `present-vertical:`, `present-lines:`, `present-share-lines:`), with `REFLEX_DEV_AUDIO_FILE` and `REFLEX_SELFTEST_SHOTS`, runs real speech through vertical or multi-line reading and logs what the page shows. The `present-share` variants also go through the floating strip: Start, the `SI ▾` dropdown and the recording switch. A covered window stops animating, so its captures can look stale; the logged frames per second show when that happens.
 - **Browser test audio** — `npm run dev`, then open `http://localhost:1420/?devAudio=/path/to/speech.wav` (16 kHz WAV under `public/`) to feed a recording to the in-browser recognizer instead of the microphone.
 
 ## Known limitations

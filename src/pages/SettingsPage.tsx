@@ -13,6 +13,7 @@ import { useSettings } from '../features/settings/settingsStore'
 import { MicStatus } from '../features/speech/MicStatus'
 import { ModelList } from '../features/speech/ModelList'
 import { useSpeechEngine } from '../features/speech/useSpeechEngine'
+import { MAX_LINES } from '../features/teleprompter/layout'
 import { Teleprompter } from '../features/teleprompter/Teleprompter'
 import { DEFAULT_COMMAND_PHRASES } from '../services/alignment/commands'
 import { tokenizeScript } from '../services/alignment/normalize'
@@ -33,7 +34,7 @@ const SECTIONS = [
 ] as const
 
 const SAMPLE =
-  'Today I want to show you how we are building the operating infrastructure for global Voice AI. We have validated the product with more than 150,000 directly verifiable AI calls.'
+  'Today I want to show you how we are building the operating infrastructure for global Voice AI. We have validated the product with more than 150,000 directly verifiable AI calls. Customers go live in days, not months, and most of them expand within the first quarter. Our next step is to bring the same quality to every major language, and that is what this round will pay for. Let me walk you through the numbers, the team and the plan for the next eighteen months.'
 
 const LANGUAGES = [
   ['en', 'English'],
@@ -123,11 +124,28 @@ export function SettingsPage() {
 
             <SpeechSection />
 
-            <Section id="teleprompter" title="Teleprompter" description="How the live 8-word strip looks while you present.">
+            <Section id="teleprompter" title="Teleprompter" description="How the live reading text looks while you present.">
               <TeleprompterPreview />
-              <Row label="Words visible" hint="Exactly this many words are shown at a time.">
-                <Slider value={settings.teleprompter.wordsVisible} min={4} max={14} onChange={(v) => update('teleprompter', { wordsVisible: v })} format={(v) => `${v} words`} />
+              <Row label="Reading direction" hint="Horizontal: words slide sideways along the line. Vertical: lines move up as you read from top to bottom, like a classic teleprompter.">
+                <Segmented
+                  value={settings.teleprompter.direction}
+                  // One line can't show lines moving up, so vertical starts with three.
+                  onChange={(direction) => update('teleprompter', direction === 'vertical' && settings.teleprompter.lines === 1 ? { direction, lines: 3 } : { direction })}
+                  options={[{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }]}
+                />
               </Row>
+              <Row label="Lines shown" hint="Extra lines show the words coming next, and they all move along as you read.">
+                <Segmented
+                  value={String(settings.teleprompter.lines)}
+                  onChange={(lines) => update('teleprompter', { lines: Number(lines) })}
+                  options={Array.from({ length: MAX_LINES }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))}
+                />
+              </Row>
+              {settings.teleprompter.direction === 'horizontal' && (
+                <Row label="Words per line" hint="Exactly this many words are shown on each line.">
+                  <Slider value={settings.teleprompter.wordsVisible} min={4} max={14} onChange={(v) => update('teleprompter', { wordsVisible: v })} format={(v) => `${v} words`} />
+                </Row>
+              )}
               <Row label="Font size">
                 <Slider value={settings.teleprompter.fontSize} min={22} max={84} onChange={(v) => update('teleprompter', { fontSize: v })} format={(v) => `${v}px`} />
               </Row>
@@ -325,7 +343,7 @@ function SpeechSection() {
           className="w-full"
           value={sp.deviceId ?? ''}
           onChange={(v) => update('speech', { deviceId: v || null })}
-          options={[{ value: '', label: 'Default microphone' }, ...devices.map((d) => ({ value: d.id, label: d.name + (d.isDefault ? ' (default)' : '') }))]}
+          options={[{ value: '', label: 'Default microphone' }, ...devices.filter((d) => d.id).map((d) => ({ value: d.id, label: d.name + (d.isDefault ? ' (default)' : '') }))]}
         />
       </Row>
       <div className="py-3">

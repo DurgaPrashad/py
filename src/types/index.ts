@@ -86,6 +86,10 @@ export interface Settings {
     biasWithScript: boolean
   }
   teleprompter: {
+    /** horizontal: words slide along the line. vertical: lines move up as you read. */
+    direction: 'horizontal' | 'vertical'
+    /** Lines on screen; those below the current one show the words coming next. */
+    lines: number
     wordsVisible: number
     fontSize: number
     /** Percent of the window width. */

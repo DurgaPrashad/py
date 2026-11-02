@@ -4,6 +4,7 @@
  * result, removes the test presentation again and reports to the terminal.
  */
 import { useSettings } from '../features/settings/settingsStore'
+import type { Settings } from '../types'
 import { importPresentation } from '../services/parser/importer'
 import { createBlankPresentation } from '../services/parser/slides'
 import { deletePresentation, listPresentations, loadPresentation, readFileBytes, savePresentation, withWords } from '../services/storage/projects'
@@ -21,6 +22,10 @@ export async function runSelfTest() {
     else if (file.startsWith('capture:')) await testCapture(file.slice('capture:'.length))
     else if (file.startsWith('present:')) await testPresent(file.slice('present:'.length))
     else if (file.startsWith('present-share:')) await testPresent(file.slice('present-share:'.length), true)
+    else if (file.startsWith('present-vertical:')) await testPresent(file.slice('present-vertical:'.length), false, { direction: 'vertical', lines: 3 })
+    else if (file.startsWith('present-lines:')) await testPresent(file.slice('present-lines:'.length), false, { direction: 'horizontal', lines: 3 })
+    else if (file.startsWith('present-share-vertical:')) await testPresent(file.slice('present-share-vertical:'.length), true, { direction: 'vertical', lines: 3 })
+    else if (file.startsWith('present-share-lines:')) await testPresent(file.slice('present-share-lines:'.length), true, { direction: 'horizontal', lines: 2 })
     else await testFile(file)
   }
 }
@@ -120,17 +125,54 @@ async function testWindows() {
   }
 }
 
+/** The floating strip: SI opens and closes through its dropdown, and the recording switch reaches the window. */
+async function testFloatingStrip(shots: string) {
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  const size = () => `${window.innerWidth}x${window.innerHeight}`
+  const hidden = () => invoke<boolean>('dev_window_hidden_from_capture', { label: 'main' })
+  const setHidden = (hideFloatingFromCapture: boolean) =>
+    useSettings.setState((st) => ({ settings: { ...st.settings, display: { ...st.settings.display, hideFloatingFromCapture } } }))
+  const closed = size()
+  ;[...document.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith('SI'))?.click()
+  await sleep(800)
+  const open = size()
+  await log(`with SI open: ${describeReading()}`)
+  await invoke('dev_capture_window', { label: 'main', savePath: `${shots}/present-si.bmp` }).catch(() => {})
+  document.querySelector<HTMLElement>('[aria-label^="Close SI"]')?.click()
+  await sleep(800)
+  await log(`SI dropdown: closed ${closed}, open ${open}, closed again ${size()}; ${describeReading()}`)
+  const off = await hidden()
+  setHidden(true)
+  await sleep(500)
+  const on = await hidden()
+  setHidden(false)
+  await sleep(500)
+  await log(`recording switch: off ${off}, on ${on}, off again ${await hidden()}`)
+}
+
+/** What the reading text really shows, read back from the page. */
+function describeReading(): string {
+  const box = [...document.querySelectorAll('.select-none')].find((el) => el.querySelector('span'))
+  if (!box) return 'no reading text'
+  const words = [...box.querySelectorAll<HTMLElement>('span:not([aria-hidden])')]
+  const current = words.find((w) => w.style.color.includes('accent'))
+  const shown = words.filter((w) => Number(w.style.opacity) > 0)
+  const tops = [...new Set(shown.map((w) => w.offsetTop))]
+  const track = current?.parentElement
+  return `current "${current?.textContent}" index ${current ? words.indexOf(current) : -1}, shown ${shown.length} words on ${tops.length} lines, first "${shown[0]?.textContent}", track ${track?.style.transform}`
+}
+
 /**
  * Presentation mode end to end: speech engine (fed by REFLEX_DEV_AUDIO_FILE)
  * -> Tauri events -> alignment -> teleprompter position.
  */
-async function testPresent(scriptPath: string, share = false) {
+async function testPresent(scriptPath: string, share = false, reading?: Pick<Settings['teleprompter'], 'direction' | 'lines'>) {
   try {
     const script = new TextDecoder().decode(await readFileBytes(scriptPath)).trim()
     while (!useSettings.getState().loaded) await new Promise((r) => setTimeout(r, 50))
     // Present fullscreen (as users do) unless told otherwise; not persisted.
     const mode = (share ? 'share' : (await invoke<string | null>('dev_selftest_shots').catch(() => null)) ? 'fullscreen' : 'window') as 'fullscreen' | 'window' | 'share'
-    useSettings.setState((st) => ({ settings: { ...st.settings, display: { ...st.settings.display, mode } } }))
+    useSettings.setState((st) => ({ settings: { ...st.settings, display: { ...st.settings.display, mode, hideFloatingFromCapture: false }, teleprompter: { ...st.settings.teleprompter, ...reading } } }))
     const blank = await createBlankPresentation('Self-test')
     const p = await savePresentation({ ...blank, slides: [withWords({ ...blank.slides[0], script })] })
     const words = p.slides[0].words
@@ -148,8 +190,10 @@ async function testPresent(scriptPath: string, share = false) {
     window.location.hash = `#/present/${p.id}`
     if (share) {
       // Click "Start" on the video-call setup card.
-      for (let i = 0; i < 40; i++) {
-        const start = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Start')
+      for (let i = 0; i < 80; i++) {
+        // The speech setup card has a Start button too; wait for this one.
+        const onCard = document.body.textContent?.includes('Present to a video call')
+        const start = onCard ? [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Start') : null
         if (start) {
           start.click()
           break
@@ -166,10 +210,25 @@ async function testPresent(scriptPath: string, share = false) {
       await new Promise((r) => setTimeout(r, 250))
       // Save a few native captures of the presenter while it follows speech.
       if (shots && last >= [4, 14, 30][shot]) {
+        await log(`on screen at word ${last}: ${describeReading()}`)
         await invoke('dev_capture_window', { label: 'main', savePath: `${shots}/present-${shot}.bmp` }).catch(() => {})
         if (share) await invoke('dev_capture_window', { label: 'audience', savePath: `${shots}/slides-${shot}.bmp` }).catch((e) => log(`slides capture failed: ${errorMessage(e)}`))
         shot++
       }
+    }
+    if (shots) {
+      // Let the text settle, then compare what the page says with what was painted.
+      // (A covered window stops animating; the floating strip is always on top.)
+      let frames = 0
+      const count = () => {
+        frames++
+        if (frames < 1000) requestAnimationFrame(count)
+      }
+      requestAnimationFrame(count)
+      await new Promise((r) => setTimeout(r, 1500))
+      await log(`settled at the end (${Math.round(frames / 1.5)} frames/s, window ${window.innerWidth}x${window.innerHeight}): ${describeReading()}`)
+      await invoke('dev_capture_window', { label: 'main', savePath: `${shots}/present-end.bmp` }).catch(() => {})
+      if (share) await testFloatingStrip(shots)
     }
     delete (window as { __reflexTrace?: unknown }).__reflexTrace
     window.location.hash = '#/'
