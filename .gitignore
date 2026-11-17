@@ -34,3 +34,6 @@ public/__dev__
 
 # Marketing assets (generated locally)
 launch/
+
+# Supabase CLI cache
+supabase/.temp/

@@ -14,10 +14,12 @@ import { syncPayments } from './checkout'
 /** The web app needs an account (the desktop app asks when you open a plan-only page). */
 export function RequireAccount({ children }: { children: ReactNode }) {
   const ready = useAccount((s) => s.ready)
+  const offline = useAccount((s) => s.offline)
   const session = useAccount((s) => s.session)
   const { pathname, search } = useLocation()
   if (platform.kind !== 'web') return children
   if (!ready) return <div className="h-full bg-app" />
+  if (!session && offline) return <AccountOffline />
   if (!session) return <Navigate to={`/login?next=${encodeURIComponent(pathname + search)}`} replace />
   return children
 }
@@ -25,11 +27,13 @@ export function RequireAccount({ children }: { children: ReactNode }) {
 /** Using the app needs a paid plan (Standard or SI). Without one: choose and pay, right here. */
 export function RequirePlan({ children }: { children: ReactNode }) {
   const ready = useAccount((s) => s.ready)
+  const offline = useAccount((s) => s.offline)
   const session = useAccount((s) => s.session)
   const profile = useAccount((s) => s.profile)
   const { pathname, search } = useLocation()
   // Desktop self-tests (REFLEX_SELFTEST_FILE) run without an account.
   if (platform.kind === 'desktop' && import.meta.env.DEV) return children
+  if (offline && !profile) return <AccountOffline />
   if (!ready || (session && !profile)) {
     return (
       <div className="flex h-full items-center justify-center bg-app">
@@ -40,6 +44,27 @@ export function RequirePlan({ children }: { children: ReactNode }) {
   if (!session) return <Navigate to={`/login?next=${encodeURIComponent(pathname + search)}`} replace />
   if (entitlements(profile).canPresent) return children
   return <ChoosePlan />
+}
+
+/** The account service didn't answer: say so, rather than a blank page or an endless spinner. */
+function AccountOffline() {
+  return (
+    <div className="flex h-full items-center justify-center bg-app p-6 text-center">
+      <div className="max-w-sm">
+        <h1 className="text-[17px] font-semibold tracking-tight">Can’t reach your account right now</h1>
+        <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+          The sign-in service isn’t answering. Your presentations are saved on this device. Please try again in a minute.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg bg-accent px-4 text-[13px] font-medium text-accent-fg hover:brightness-110"
+        >
+          <RefreshCw size={14} /> Try again
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function ChoosePlan() {

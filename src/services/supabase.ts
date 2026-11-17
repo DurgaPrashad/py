@@ -11,8 +11,19 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   },
 })
 
+/** Shown when the account service doesn't answer: no connection, or the project is paused. */
+export const UNREACHABLE = 'Can’t reach the Present account service right now. Please try again in a minute.'
+
+/** True when an error means the account service couldn't be reached at all. */
+export function isUnreachable(e: unknown): boolean {
+  const msg = (e as { message?: string })?.message ?? String(e)
+  const name = (e as { name?: string })?.name ?? ''
+  return msg === UNREACHABLE || name === 'AuthRetryableFetchError' || /failed to fetch|load failed|networkerror|fetch failed|network request failed/i.test(msg)
+}
+
 /** Message of a Supabase / PostgREST error, minus our internal error-code prefixes. */
 export function supabaseMessage(e: unknown): string {
+  if (isUnreachable(e)) return UNREACHABLE
   const msg = (e as { message?: string })?.message ?? String(e)
   return msg.replace(/^[A-Z_]+: /, '')
 }

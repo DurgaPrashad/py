@@ -5,7 +5,7 @@ import { Logo } from '../../components/Logo'
 import { PLANS, PRODUCT, SITE_URL } from '../../config'
 import { useAccount } from '../../features/account/account'
 import { platform } from '../../platform'
-import { supabase } from '../../services/supabase'
+import { isUnreachable, supabase, supabaseMessage, UNREACHABLE } from '../../services/supabase'
 import { errorMessage } from '../../services/tauri'
 import { HOME } from '../../utils/routes'
 
@@ -61,12 +61,12 @@ export function AuthPage({ mode }: { mode: Mode }) {
       else if (mode === 'signup') await signUp(email, password, name)
       else if (mode === 'forgot') {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${SITE_URL}/reset` })
-        if (error) throw new Error(`${error.message}. If this keeps happening, contact us and we'll reset it for you.`)
+        if (error) throw new Error(isUnreachable(error) ? UNREACHABLE : `${error.message}. If this keeps happening, contact us and we'll reset it for you.`)
         setNotice('If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.')
       } else {
         if (password !== password2) throw new Error('The passwords don’t match.')
         const { error } = await supabase.auth.updateUser({ password })
-        if (error) throw new Error(error.message)
+        if (error) throw new Error(supabaseMessage(error))
         navigate(HOME, { replace: true })
       }
     } catch (err) {

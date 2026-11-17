@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { create } from 'zustand'
 import { PRESENTATION_LIMIT } from '../../config'
-import { supabase, supabaseMessage } from '../../services/supabase'
+import { isUnreachable, supabase, supabaseMessage } from '../../services/supabase'
 
 /** public.profiles — one row per account. */
 export interface Profile {
@@ -35,6 +35,8 @@ export interface Payment {
 interface AccountState {
   /** The stored session has been read (signed in or not). */
   ready: boolean
+  /** The account service didn't answer: no connection, or the project is paused. */
+  offline: boolean
   session: Session | null
   profile: Profile | null
   init(): void
@@ -46,26 +48,36 @@ interface AccountState {
 }
 
 let started = false
+const OFFLINE_AFTER_MS = 8000
 
 export const useAccount = create<AccountState>((set, get) => ({
   ready: false,
+  offline: false,
   session: null,
   profile: null,
 
   init() {
     if (started) return
     started = true
+    const markOffline = (e: unknown) => {
+      if (isUnreachable(e)) set({ ready: true, offline: true })
+    }
     supabase.auth.onAuthStateChange((event, session) => {
       const prev = get().session?.user.id
       set({ session, ready: true })
       if (!session) set({ profile: null })
       // Fetch outside the auth callback (supabase-js holds a lock during it).
-      else if (session.user.id !== prev || event === 'USER_UPDATED') setTimeout(() => void get().refresh(), 0)
+      else if (session.user.id !== prev || event === 'USER_UPDATED') setTimeout(() => void get().refresh().catch(markOffline), 0)
     })
-    supabase.auth.getSession().then(({ data }) => {
-      set({ session: data.session, ready: true })
-      if (data.session) void get().refresh()
+    supabase.auth.getSession().then(({ data, error }) => {
+      set({ session: data.session, ready: true, offline: !!error && isUnreachable(error) })
+      if (data.session) void get().refresh().catch(markOffline)
     })
+    // The client keeps retrying an unreachable service for a long time; say so
+    // instead of leaving the page blank.
+    setTimeout(() => {
+      if (!get().ready) set({ ready: true, offline: true })
+    }, OFFLINE_AFTER_MS)
   },
 
   async refresh() {
@@ -85,7 +97,7 @@ export const useAccount = create<AccountState>((set, get) => ({
         .limit(1)
       profile.yearly_until = (pays?.[0] as { period_end?: string } | undefined)?.period_end ?? null
     }
-    set({ profile })
+    set({ profile, offline: false })
     void recoverPendingPayment(profile)
     return profile
   },
@@ -97,7 +109,7 @@ export const useAccount = create<AccountState>((set, get) => ({
 
   async signIn(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Wrong email or password.' : error.message)
+    if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Wrong email or password.' : supabaseMessage(error))
   },
 
   async signUp(email, password, fullName) {

@@ -18,6 +18,7 @@ const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(
 export function PlanDashboard({ items }: { items: Presentation[] | null }) {
   const navigate = useNavigate()
   const ready = useAccount((s) => s.ready)
+  const offline = useAccount((s) => s.offline)
   const session = useAccount((s) => s.session)
   const profile = useAccount((s) => s.profile)
   const si = useSettings((s) => s.settings.si)
@@ -45,6 +46,15 @@ export function PlanDashboard({ items }: { items: Presentation[] | null }) {
             Sign in
           </CardButton>
           <CardButton onClick={() => navigate('/signup')}>Create account</CardButton>
+        </div>
+      </PlanCard>
+    )
+  } else if (offline && !profile) {
+    card = (
+      <PlanCard tone="muted" eyebrow="Your plan" title="Can’t reach your account right now">
+        <p className="text-[13px] leading-relaxed text-muted">Your presentations are saved on this device. Your plan shows up again once the sign-in service answers.</p>
+        <div className="mt-4">
+          <CardButton onClick={() => window.location.reload()}>Try again</CardButton>
         </div>
       </PlanCard>
     )
